@@ -459,7 +459,10 @@ class ConfigInterface(ScrollArea):
 
     
     def _load_settings(self):
-        filename, _ = QFileDialog.getOpenFileName(self, "설정 불러오기", "data", "JSON Files (*.json)")
+        # 프로젝트 data 폴더 경로
+        import os
+        data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "data")
+        filename, _ = QFileDialog.getOpenFileName(self, "설정 불러오기", data_path, "JSON Files (*.json)")
         if filename:
             self.vm.load_config_from_file(filename)
             # self._mark_dirty() -> Handled by VM Event
@@ -468,7 +471,10 @@ class ConfigInterface(ScrollArea):
     
     def _save_settings(self):
         # ... (Same as before but keep it explicit)
-        filename, _ = QFileDialog.getSaveFileName(self, "설정 저장", "data", "JSON Files (*.json)")
+        # 프로젝트 data 폴더 경로
+        import os
+        data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "data")
+        filename, _ = QFileDialog.getSaveFileName(self, "설정 저장", data_path, "JSON Files (*.json)")
         if filename:
              d_vars = {d: cb.isChecked() for d, cb in self.day_checkboxes.items()}
              self.vm.save_settings_to_file(
