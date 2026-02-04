@@ -1,0 +1,53 @@
+name: Build and Release EXE
+
+on:
+  push:
+    tags:
+      - 'v*'  # v1.0, v1.1, v2.0 등의 태그에 반응
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install PySide6 pandas openpyxl pyinstaller
+    
+    - name: Build EXE
+      run: |
+        pyinstaller --clean --noconfirm ScheduleMaker.spec
+    
+    - name: Get tag name
+      id: tag_name
+      run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      shell: bash
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: dist/ScheduleMaker_2026.exe
+        body: |
+          ## Schedule Maker ${{ steps.tag_name.outputs.TAG }}
+          
+          ### 다운로드
+          - Windows 실행 파일: `ScheduleMaker_2026.exe`
+          
+          ### 설치 방법
+          1. `ScheduleMaker_2026.exe` 다운로드
+          2. 원하는 폴더에 저장
+          3. 실행 (백신 경고 시 예외 처리 필요)
+          
+          ### 변경사항
+          - 자동 생성된 릴리스입니다.
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
