@@ -44,7 +44,12 @@ class SearchViewModel(BaseViewModel):
         if self._search_by_name: search_by.append('name')
         if self._search_by_prof: search_by.append('professor')
         
-        results = self.course_service.search_courses(query, search_by)
+        # CourseService.search_courses()에 올바른 타입으로 전달
+        results = self.course_service.search_courses(
+            query=query,
+            search_by_name=self._search_by_name,
+            search_by_professor=self._search_by_prof
+        )
         self._search_results = results
         
         # 정렬 상태가 있으면 유지
