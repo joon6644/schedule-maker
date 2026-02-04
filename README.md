@@ -1,124 +1,93 @@
-# 시간표 조합 생성 프로그램
+# Schedule Maker (명지대학교 시간표 생성기)
 
-명지대 시간표 CSV 파일을 기반으로 DFS 백트래킹 알고리즘을 사용하여 가능한 모든 시간표 조합을 생성하고 HTML로 시각화합니다.
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Qt for Python](https://img.shields.io/badge/Qt-PySide6-green.svg)](https://wiki.qt.io/Qt_for_Python)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## ✨ 기능
+**Schedule Maker**는 명지대학교 학생들을 위한 지능형 시간표 생성 자동화 도구입니다. 
+사용자가 원하는 필수/희망 강의와 제약 조건(공강 요일, 최소/최대 학점 등)을 입력하면, 백트래킹 알고리즘을 사용하여 가능한 모든 시간표 조합을 생성하고 시각화해줍니다.
 
-- ✅ CSV 파일에서 강의 정보 자동 파싱
-- ✅ 유연한 강의 검색 (강의명, 시간, 교수명 중 하나만 입력)
-- ✅ **특정 요일 제외** (예: 금요일 강의 없는 시간표)
-- ✅ DFS 백트래킹으로 모든 가능한 조합 생성
-- ✅ 인터랙티브 HTML 시간표 시각화
-- ✅ 좌/우 화살표 키로 조합 탐색
+## ✨ 주요 기능
 
-## 📋 요구사항
+- **🖥 현대적인 GUI 환경**: `PySide6`와 `Fluent UI`를 적용하여 깔끔하고 직관적인 사용자 경험을 제공합니다.
+- **🔍 강력한 강의 검색**: 강의명, 교수명으로 빠르게 검색하고 클릭 한 번으로 목록에 추가할 수 있습니다.
+- **🖱 드래그 앤 드롭**: 강의의 우선순위를 직관적으로 변경하거나 그룹(필수/희망) 간 이동이 가능합니다.
+- **⚙️ 정밀한 제약 조건**:
+    - 최소/최대 학점 설정
+    - 공강 요일 지정 (예: 금요일 수업 제외)
+    - 점심 시간 확보 등
+- **🚀 고성능 알고리즘**: 스마트 백트래킹 알고리즘을 통해 수천 가지 조합 중 최적의 시간표를 빠르게 찾아냅니다.
+- **📊 결과 시각화**: 생성된 시간표를 대화형 테이블로 확인하고, HTML 파일로 내보내어 편리하게 볼 수 있습니다.
 
+## 🛠 설치 방법
+
+이 프로젝트는 **Python 3.10 이상**을 권장합니다.
+
+1. **저장소 클론**
+   ```bash
+   git clone https://github.com/joon6644/schedule-maker.git
+   cd schedule-maker
+   ```
+
+2. **가상 환경 생성 및 활성화 (권장)**
+   ```bash
+   # Windows
+   python -m venv venv
+   .\venv\Scripts\activate
+
+   # macOS/Linux
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
+
+3. **의존성 설치**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+## 🚀 사용 가이드
+
+### 1. 프로그램 실행
 ```bash
-pip install pandas
+python run.py
 ```
 
-## 🚀 사용법
+### 2. 강의 검색 및 추가 (Search Tab)
+- **검색**: 상단 검색창에 강의명이나 교수명을 입력합니다.
+- **추가**: 검색 결과에서 원하는 강의를 **우클릭**하여 '필수(Required)' 또는 '희망(Desired)' 목록에 추가합니다.
 
-1. `config.json` 준비:
+### 3. 조건 설정 (Config Tab)
+- **학점 설정**: 이번 학기에 들을 최소/최대 학점을 슬라이더로 조절합니다.
+- **공강 설정**: 학교에 가지 않을 요일을 선택합니다.
+- **강의 관리**: 추가한 강의 목록을 확인하고, 드래그하여 우선순위를 변경하거나 삭제할 수 있습니다.
 
-먼저 예시 파일을 복사하세요:
-```bash
-copy config.example.json config.json
-```
+### 4. 결과 생성 (Result Tab)
+- 자동으로 최적의 시간표 조합을 계산하여 보여줍니다.
+- 결과 리스트를 클릭하면 오른쪽 미리보기에 시간표가 표시됩니다.
+- 마음에 드는 시간표는 HTML로 저장하여 소장할 수 있습니다.
 
-2. `config.json` 수정:
-```json
-{
-  "학점_설정": {
-    "최소_학점": 17,
-    "최대_학점": 19
-  },
-  
-  "필수_강의": [
-    {
-      "_설명": "ERP개론",
-      "CSV_붙여넣기": "3학년,ERP개론,3,3,N,강성구,5924,0,40,화 10:30~11:45..."
-    },
-    {
-      "_설명": "영어회화2",
-      "조건_검색": {
-        "강의명": "영어회화2",
-        "교수명": "딜런모건"
-      }
-    }
-  ],
-  
-  "희망_강의": [
-    {
-      "_설명": "운영관리",
-      "조건_검색": {
-        "강의명": "운영관리",
-        "교수명": "김준영"
-      }
-    }
-  ],
-  
-  "제외_요일": ["금"]
-}
-```
-
-**설정 설명**:
-- `필수_강의`: 반드시 포함될 강의 (같은 강의의 모든 시간대 조합 탐색)
-- `희망_강의`: 포함되면 좋은 강의
-- 각 항목: `CSV_붙여넣기` 또는 `조건_검색` 중 하나
-- 조건_검색: 강의명/시간/교수명 중 하나 이상 (OR 조건)
-
-3. 프로그램 실행:
-```bash
-python main.py
-```
-
-✨ 자동으로 브라우저에서 `schedule_results.html`이 열립니다!
-
-## 📂 파일 구조
+## 📂 프로젝트 구조
 
 ```
-schedule_maker.py/
-├── main.py              # 메인 프로그램
-├── models.py            # 데이터 모델 (TimeSlot, Course, Schedule)
-├── csv_parser.py        # CSV 파싱
-├── config.py            # 설정 관리
-├── scheduler.py         # DFS 백트래킹 알고리즘  
-├── visualizer.py        # HTML 시각화
-└── 명지대_전체시간표_완성본.csv  # 강의 데이터
+schedule_maker/
+├── data/                       # 데이터 리소스 (강의 목록 CSV 등)
+├── schedule_maker/             # 메인 소스 코드
+│   ├── core/                   # 데이터 모델 및 핵심 로직
+│   ├── services/               # 비즈니스 로직 (알고리즘, 파일 처리)
+│   └── ui/                     # 사용자 인터페이스 (View, ViewModel)
+├── tests/                      # 단위 테스트 (Pytest)
+├── run.py                      # 실행 파일
+└── requirements.txt            # 의존성 목록
 ```
 
-## 🎯 config.json 예시
+## 🏗 기술 스택
 
-```json
-{
-  "min_credits": 15,
-  "max_credits": 18,
-  "required_courses": [
-    "글쓰기",
-    "영어1"
-  ],
-  "desired_courses": [
-    "현대사회와심리학",
-    "교양바둑"
-  ],
-  "excluded_days": ["금"]
-}
-```
+- **Language**: Python 3.10+
+- **GUI Framework**: PySide6 (Qt for Python), QFluentWidgets
+- **Algorithm**: Randomized Backtracking with Heuristics
+- **Testing**: Pytest
+- **Data**: Pandas (CSV Parsing)
 
-**고급 사용법**:
-- `"교과목명|교수명"` 형식으로 특정 교수 지정 가능
-- 예: `"영어1|전미경"` → 전미경 교수의 영어1만 선택
+## 📄 라이선스
 
-## 🔧 알고리즘 특징
-
-- **필수 강의 우선 배치**: 먼저 필수 강의들을 배치
-- **희망 강의 우선순위**: 희망 강의를 우선적으로 고려
-- **Pruning 최적화**: 학점 초과 시 조기 종료
-- **시간 충돌 검사**: 모든 강의 시간 겹침 자동 체크
-
-## 💡 팁
-
-- 조합이 너무 많이 나오면 학점 범위를 좁히세요
-- 조합이 없으면 필수 강의 간 시간 충돌을 확인하세요
-- HTML 파일에서 화살표 키로 조합을 빠르게 탐색할 수 있습니다
+이 프로젝트는 MIT 라이선스를 따릅니다. 자세한 내용은 `LICENSE` 파일을 참조하세요.
