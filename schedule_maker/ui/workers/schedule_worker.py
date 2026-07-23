@@ -71,7 +71,18 @@ class ScheduleGenerationWorker(QThread):
 
             # 3. HTML로 내보내기 (브라우저 자동 열기 안 함)
             output_path = os.path.join(self.controller.data_path, 'data', 'schedule_results.html')
-            self.controller.schedule_service.export_to_html(output_path, open_browser=False)
+            year = None
+            semester = None
+            term_key = getattr(self.controller, 'current_term_key', None)
+            if term_key and '_' in term_key:
+                year, semester = term_key.split('_', 1)
+
+            self.controller.schedule_service.export_to_html(
+                output_path,
+                open_browser=False,
+                year=year,
+                semester=semester
+            )
             
             # 🎯 상태 전이: PROCESSING → COMPLETED
             if self.state_manager:

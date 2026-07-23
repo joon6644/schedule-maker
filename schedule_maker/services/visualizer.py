@@ -1098,7 +1098,9 @@ class HtmlVisualizer:
         schedules: List[Schedule], 
         output_file: str, 
         required_course_names: set = None,
-        desired_course_names: set = None
+        desired_course_names: set = None,
+        year: str = None,
+        semester: str = None
     ):
         """
         시간표 조합 결과를 인터랙티브 HTML 파일로 저장
@@ -1191,6 +1193,23 @@ class HtmlVisualizer:
         final_html = HtmlVisualizer.HTML_TEMPLATE.replace('SCHEDULE_DATA_PLACEHOLDER', json_str)
         final_html = final_html.replace('ALL_COURSES_PLACEHOLDER', all_courses_json)
         final_html = final_html.replace('REQUIRED_COURSES_PLACEHOLDER', required_courses_json)
+
+        term_label = ""
+        if year and semester:
+            term_label = f"{year}학년도 {semester}학기"
+        elif year:
+            term_label = f"{year}학년도"
+
+        if term_label:
+            final_html = final_html.replace(
+                "<title>시간표 조합 결과</title>",
+                f"<title>{term_label} 시간표 조합 결과</title>"
+            )
+            final_html = final_html.replace(
+                '<div class="header">',
+                f'<div class="header">\n            <div style="font-size: 1rem; opacity: 0.9; margin-bottom: 8px;">{term_label}</div>',
+                1
+            )
         
         with open(output_file, 'w', encoding='utf-8') as f:
             f.write(final_html)
@@ -1198,6 +1217,13 @@ class HtmlVisualizer:
         print(f"✅ HTML 시각화 파일 생성 완료: {output_file}")
 
 
-def generate_html(schedules, output_file, required_names=None, desired_names=None):
-    """호환성 래퍼"""
-    HtmlVisualizer.generate_html(schedules, output_file, required_names, desired_names)
+def generate_html(schedules, output_file, required_names=None, desired_names=None, year=None, semester=None):
+    """Wrapper."""
+    HtmlVisualizer.generate_html(
+        schedules,
+        output_file,
+        required_names,
+        desired_names,
+        year=year,
+        semester=semester
+    )

@@ -1,80 +1,106 @@
 """
-애플리케이션 컨트롤러
-전체 프로그램의 실행 흐름을 제어하는 메인 컨트롤러
+Application execution controller.
 """
+import glob
 import os
-import sys
-from ..core.config import load_config_from_json, ScheduleConfig
+import re
+
+from ..core.config import load_config_from_json
 from ..core.exceptions import ScheduleMakerError
-from ..services.parser import CsvParser, parse_csv
+from ..services.parser import parse_csv
 from ..services.scheduler import ScheduleGenerator
-from ..services.visualizer import HtmlVisualizer, generate_html
+from ..services.visualizer import generate_html
 
 
 class ApplicationController:
-    """애플리케이션 실행 흐름 제어"""
-    
     def __init__(self, base_dir: str = "."):
         self.base_dir = base_dir
-        self.csv_file = os.path.join(base_dir, "mju_2026_1.csv")
-        self.config_file = os.path.join(base_dir, "config.json")
+        self.csv_file = self._resolve_csv_file()
+        self.term_key = self._extract_term_key(self.csv_file)
+        self.config_file = self._resolve_config_file(self.term_key)
         self.schedules = []
-    
+
+    def _resolve_csv_file(self) -> str:
+        preferred = os.path.join(self.base_dir, "mju_2026_2.csv")
+        if os.path.exists(preferred):
+            return preferred
+        candidates = glob.glob(os.path.join(self.base_dir, "mju_*.csv"))
+        if candidates:
+            candidates.sort(key=lambda path: os.path.getmtime(path), reverse=True)
+            return candidates[0]
+        return preferred
+
+    def _extract_term_key(self, csv_path: str):
+        filename = os.path.basename(csv_path)
+        match = re.match(r"mju_(\d{4})_(\d)\.csv$", filename)
+        if match:
+            return f"{match.group(1)}_{match.group(2)}"
+        return None
+
+    def _resolve_config_file(self, term_key: str):
+        config_dir = os.path.join(self.base_dir, "data", "configs")
+        os.makedirs(config_dir, exist_ok=True)
+        if term_key:
+            return os.path.join(config_dir, f"{term_key}.json")
+        return os.path.join(config_dir, "default.json")
+
     def run(self) -> str:
-        """
-        전체 프로세스 실행
-        Returns:
-            생성된 결과 파일 경로
-        """
-        # 1. 파일 확인
         self._check_files()
-        
-        # 2. 로딩
-        print(f"\n📂 CSV 파일 로딩: {self.csv_file}")
+
+        print(f"\n[INFO] CSV file loaded: {self.csv_file}")
         all_courses = parse_csv(self.csv_file)
-        
         if not all_courses:
-            raise ScheduleMakerError("CSV 파일에서 강의를 읽을 수 없습니다.")
-            
+            raise ScheduleMakerError("Could not read any courses from the CSV file.")
+
         try:
             config = load_config_from_json(self.config_file)
         except Exception as e:
-            raise ScheduleMakerError(f"설정 파일 로딩 실패: {e}")
-            
-        # 3. 생성
+            raise ScheduleMakerError(f"Failed to load config: {e}")
+
         generator = ScheduleGenerator(all_courses, config)
         self.schedules = generator.generate_all_schedules()
-        
         if not self.schedules:
-            raise ScheduleMakerError("조건에 맞는 시간표 조합을 찾을 수 없습니다.\n\n[팁]\n- 학점 범위를 넓혀보세요.\n- 필수 강의를 줄여보세요.\n- 시간 충돌을 확인하세요.")
-            
-        # 4. 저장 및 시각화
+            raise ScheduleMakerError(
+                "Could not find any schedules matching the conditions.\n\n"
+                "[Check]\n"
+                "- Reduce credit range\n"
+                "- Reduce required courses\n"
+                "- Check time conflicts"
+            )
+
         output_file = os.path.join(self.base_dir, "schedule_results.html")
-        
-        # 필수/희망 이름 추출 (시각화용)
         required_names = set()
         if hasattr(generator, 'required_course_groups'):
             for group in generator.required_course_groups:
                 for course in group:
                     required_names.add(course.name)
-        
+
         desired_names = set()
         if hasattr(generator, 'desired_course_groups'):
             for group in generator.desired_course_groups:
                 for course in group:
                     desired_names.add(course.name)
-                    
-        generate_html(self.schedules, output_file, required_names, desired_names)
-        
+
+        year = self.term_key.split('_')[0] if self.term_key and '_' in self.term_key else None
+        semester = self.term_key.split('_')[1] if self.term_key and '_' in self.term_key else None
+        generate_html(
+            self.schedules,
+            output_file,
+            required_names,
+            desired_names,
+            year=year,
+            semester=semester
+        )
         return output_file
 
     def _check_files(self):
-        """필요한 파일 존재 여부 확인"""
         if not os.path.exists(self.csv_file):
-            raise ScheduleMakerError(f"CSV 파일을 찾을 수 없습니다:\n{self.csv_file}\n\n'mju_2026_1.csv' 파일이 필요합니다.")
-            
+            raise ScheduleMakerError(
+                f"CSV file not found:\n{self.csv_file}\n\n"
+                "A file named mju_YYYY_S.csv is required."
+            )
         if not os.path.exists(self.config_file):
-            raise ScheduleMakerError(f"설정 파일을 찾을 수 없습니다:\n{self.config_file}")
+            raise ScheduleMakerError(f"Config file not found:\n{self.config_file}")
 
     def get_schedule_count(self) -> int:
         return len(self.schedules)

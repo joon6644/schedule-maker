@@ -74,7 +74,9 @@ class ScheduleService(IScheduleService):
         output_path: str = 'schedule_results.html',
         required_names: set = None,
         desired_names: set = None,
-        open_browser: bool = True
+        open_browser: bool = True,
+        year: str = None,
+        semester: str = None
     ) -> str:
         """
         시간표를 HTML로 내보내기
@@ -113,7 +115,9 @@ class ScheduleService(IScheduleService):
             self._schedules,
             output_path,
             required_names,
-            desired_names
+            desired_names,
+            year=year,
+            semester=semester
         )
         
         abs_path = os.path.abspath(output_path)

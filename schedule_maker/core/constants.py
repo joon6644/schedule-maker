@@ -97,7 +97,8 @@ class PathConstants:
     CONFIG_PATH = f'{DATA_DIR}/{CONFIG_FILENAME}'
     
     # CSV 데이터 파일
-    CSV_FILENAME = 'mju_2026_1.csv'
+    CSV_FILENAME = 'mju_2026_2.csv'
+    CSV_PATTERN = 'mju_*.csv'
     
     # 결과 파일
     RESULT_FILENAME = 'schedule_results.html'

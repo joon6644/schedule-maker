@@ -5,6 +5,8 @@ __pycache__/
 *.so
 *.egg
 *.egg-info
+venv/
+.venv/
 dist/
 build/
 *.spec
@@ -17,8 +19,10 @@ htmlcov/
 
 # Data & Results
 data/config.json
+data/configs/
 schedule_results.html
 *.html
+!mju_*.csv
 
 # IDE
 .vscode/
