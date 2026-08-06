@@ -156,9 +156,11 @@ class ConfigService(IConfigService):
             self._config.desired_filters.pop(index)
     
     def add_excluded_time_slot(self, day: str, start: str, end: str):
-        """제외 시간대 추가"""
+        """제외 시간대 추가 (중복 방지)"""
         if self._config:
-            self._config.excluded_time_slots.append((day, start, end))
+            slot = (day, start, end)
+            if slot not in self._config.excluded_time_slots:
+                self._config.excluded_time_slots.append(slot)
             
     def remove_excluded_time_slot(self, index: int):
         """제외 시간대 제거 (인덱스로)"""

@@ -105,3 +105,19 @@ def test_credit_limit_enforcement(mock_courses, basic_config):
     for sched in results:
         assert sched.total_credits <= 5
         assert len(sched.courses) == 1 # Only Math fits
+
+
+def test_required_course_excluded_time_enforcement(mock_courses, basic_config):
+    # Required: Math (Math is at Mon 09:00-10:30, Math (B) is at Mon 10:00-11:30)
+    # Exclude: Monday 09:00-12:00
+    basic_config.required_filters = [CourseFilter(name='Math')]
+    basic_config.excluded_time_slots = [('월', '09:00', '12:00')]
+
+    generator = ScheduleGenerator(mock_courses, basic_config)
+    combinations = generator._generate_required_combinations(generator.required_course_groups)
+    assert len(combinations) == 0
+
+    from schedule_maker.services.scheduler import GenerationError
+    with pytest.raises(GenerationError):
+        generator.generate_all_schedules()
+

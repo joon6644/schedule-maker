@@ -5,6 +5,23 @@ ConfigViewModel에서 학점, 요일, 시간대 설정 책임을 분리
 from typing import Dict, List, Tuple
 
 
+def normalize_time_str(time_str: str) -> str:
+    """시간 문자열을 HH:MM 형태로 정규화 (예: '9:00' -> '09:00', '9' -> '09:00')"""
+    if not time_str:
+        return ""
+    time_str = str(time_str).strip()
+    if ':' in time_str:
+        parts = time_str.split(':')
+        h = int(parts[0])
+        m = int(parts[1]) if len(parts) > 1 and parts[1] else 0
+    else:
+        h = int(time_str)
+        m = 0
+    if 0 <= h <= 23 and 0 <= m <= 59:
+        return f"{h:02d}:{m:02d}"
+    return ""
+
+
 class SettingsManager:
     """
     학점 범위, 공강 요일, 제외 시간대 관리 담당
@@ -67,9 +84,16 @@ class SettingsManager:
         return config.excluded_time_slots
     
     def add_excluded_time(self, day: str, start_time: str, end_time: str) -> bool:
-        """제외 시간대 추가"""
+        """제외 시간대 추가 (검증 및 정규화 포함)"""
         try:
-            self.config_service.add_excluded_time_slot(day, start_time, end_time)
+            start_norm = normalize_time_str(start_time)
+            end_norm = normalize_time_str(end_time)
+            if not start_norm or not end_norm:
+                return False
+            if start_norm >= end_norm:
+                return False
+            
+            self.config_service.add_excluded_time_slot(day, start_norm, end_norm)
             return True
         except Exception:
             return False

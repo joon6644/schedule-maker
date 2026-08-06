@@ -77,13 +77,14 @@ class AppController:
         return True
 
     def _resolve_csv_path(self):
-        preferred = os.path.join(self.resource_path, 'mju_2026_2.csv')
+        preferred = os.path.join(self.resource_path, 'data', 'csv', 'mju_2026_2.csv')
         if os.path.exists(preferred):
             return preferred
 
         candidates = []
-        candidates.extend(glob.glob(os.path.join(self.resource_path, 'mju_*.csv')))
+        candidates.extend(glob.glob(os.path.join(self.resource_path, 'data', 'csv', 'mju_*.csv')))
         candidates.extend(glob.glob(os.path.join(self.resource_path, 'data', 'mju_*.csv')))
+        candidates.extend(glob.glob(os.path.join(self.resource_path, 'mju_*.csv')))
 
         if candidates:
             candidates.sort(key=lambda path: os.path.getmtime(path), reverse=True)

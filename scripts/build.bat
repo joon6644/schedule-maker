@@ -7,7 +7,7 @@ echo ===================================================
 echo.
 
 set "CSV_FILE="
-for %%F in (mju_*.csv) do (
+for %%F in (data\mju_*.csv mju_*.csv) do (
     set "CSV_FILE=%%~nF"
     goto :found_csv
 )

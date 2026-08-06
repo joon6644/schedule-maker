@@ -434,10 +434,12 @@ class ConfigInterface(ScrollArea):
              main_window.switch_to_result()
 
     def _add_excluded_time(self):
+        start = self.startLine.text().strip() or self.startLine.placeholderText()
+        end = self.endLine.text().strip() or self.endLine.placeholderText()
         self.vm.add_excluded_time(
             self.dayCombo.currentText(),
-            self.startLine.text(),
-            self.endLine.text()
+            start,
+            end
         )
         # self._mark_dirty() -> Handled by VM Event
 
@@ -459,21 +461,19 @@ class ConfigInterface(ScrollArea):
 
     
     def _load_settings(self):
-        # 프로젝트 data 폴더 경로
+        # 프로젝트 data/configs 폴더 경로
         import os
-        data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "data")
+        data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "data", "configs")
+        os.makedirs(data_path, exist_ok=True)
         filename, _ = QFileDialog.getOpenFileName(self, "설정 불러오기", data_path, "JSON Files (*.json)")
         if filename:
             self.vm.load_config_from_file(filename)
-            # self._mark_dirty() -> Handled by VM Event
-            # VM.load_config_from_file should triggers updates. But VM.notify calls might be many.
-            # Actually explicit load probably should dirty it.
     
     def _save_settings(self):
-        # ... (Same as before but keep it explicit)
-        # 프로젝트 data 폴더 경로
+        # 프로젝트 data/configs 폴더 경로
         import os
-        data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "data")
+        data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "data", "configs")
+        os.makedirs(data_path, exist_ok=True)
         filename, _ = QFileDialog.getSaveFileName(self, "설정 저장", data_path, "JSON Files (*.json)")
         if filename:
              d_vars = {d: cb.isChecked() for d, cb in self.day_checkboxes.items()}

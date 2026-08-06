@@ -23,16 +23,20 @@ def parse_time_string(time_str: str) -> List[TimeSlot]:
     
     # 정규식 패턴: (요일) (시작시간)~(종료시간) (강의실)
     # 예: "월 09:00~10:50 (S1221)"
-    pattern = r'([월화수목금])\s+(\d{2}:\d{2})~(\d{2}:\d{2})\s*(?:\(([^)]*)\))?'
+    pattern = r'([월화수목금])\s+(\d{1,2}:\d{2})~(\d{1,2}:\d{2})\s*(?:\(([^)]*)\))?'
     
     matches = re.findall(pattern, time_str)
     
     for match in matches:
         day, start_time, end_time, room = match
+        start_parts = start_time.split(':')
+        end_parts = end_time.split(':')
+        start_formatted = f"{int(start_parts[0]):02d}:{start_parts[1]}"
+        end_formatted = f"{int(end_parts[0]):02d}:{end_parts[1]}"
         time_slots.append(TimeSlot(
             day=day,
-            start_time=start_time,
-            end_time=end_time,
+            start_time=start_formatted,
+            end_time=end_formatted,
             room=room if room else ""
         ))
     

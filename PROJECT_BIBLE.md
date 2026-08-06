@@ -24,10 +24,18 @@
 
 ```
 schedule_maker_v2.2/
-├── data/                       # 데이터 및 설정 파일 저장소 (런타임 생성)
-│   ├── config.json             # 사용자 설정 (JSON)
+├── data/                       # 데이터 및 설정 파일 저장소
+│   ├── configs/                # 학기별/사용자별 설정 파일 (JSON)
 │   ├── mju_2026_1.csv          # 강의 데이터 (CSV)
-│   └── schedule_results.html   # 생성된 시간표 결과
+│   └── mju_2026_2.csv          # 강의 데이터 (CSV)
+│
+├── tools/                      # 보조 크롤러 및 유틸리티 도구
+│   └── schedule_crawler.py     # 시간표 데이터 크롤링 스크립트
+│
+├── scripts/                    # 실행/빌드/테스트 스크립트
+│   ├── build.bat               # PyInstaller 빌드 스크립트
+│   ├── run_tests.bat           # pytest 실행 스크립트
+│   └── start.bat               # 앱 실행 스크립트
 │
 ├── schedule_maker/             # 메인 패키지
 │   ├── __init__.py

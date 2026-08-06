@@ -1117,29 +1117,6 @@ class HtmlVisualizer:
 
         # 1. 무작위 셔플 (다양한 결과를 먼저 보여주기 위해)
         # 10000개 이상이면 셔플링하는데 비용이 들 수 있지만, UX를 위해 진행
-        if not schedules:
-            logger.warning("생성된 시간표가 없습니다 (HTML 덮어쓰기)")
-            # 빈 결과용 템플릿 사용
-            error_html = self.HTML_TEMPLATE.replace(
-                "/*DATA_PLACEHOLDER*/", 
-                "const schedules = [];"
-            ).replace(
-                "<!-- INITIAL_TOAST -->",
-                """
-                <script>
-                    window.onload = function() {
-                        showToast('결과 없음', '조건에 맞는 시간표가 없습니다.', 'error');
-                    };
-                </script>
-                """
-            )
-            try:
-                with open(output_path, 'w', encoding='utf-8') as f:
-                    f.write(error_html)
-                return output_path
-            except Exception as e:
-                logger.error(f"HTML 생성 실패: {e}")
-                return None
 
         shuffled_schedules = schedules.copy()
         

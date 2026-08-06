@@ -448,10 +448,7 @@ class ScheduleGenerator:
         filtered_groups = []
         for group in course_groups:
             valid_courses = [c for c in group if not self._is_excluded_time(c)]
-            if valid_courses:
-                filtered_groups.append(valid_courses)
-            else:
-                filtered_groups.append(group)
+            filtered_groups.append(valid_courses)
         
         combinations = []
         def backtrack(index: int, current_schedule: Schedule):
