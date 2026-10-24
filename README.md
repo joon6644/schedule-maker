@@ -84,7 +84,7 @@ schedule_maker/
 
 - **Language**: Python 3.10+
 - **GUI Framework**: PySide6 (Qt for Python), QFluentWidgets
-- **Algorithm**: Randomized Backtracking with Heuristics
+- **Algorithm**: Exhaustive Backtracking (Bitmask + Pruning)
 - **Testing**: Pytest
 - **Data**: Pandas (CSV Parsing)
 

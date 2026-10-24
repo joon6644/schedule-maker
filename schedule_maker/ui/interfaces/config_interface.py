@@ -3,23 +3,21 @@ Config Interface
 Replaces ConfigTab with Fluent UI.
 Uses Card Widgets for grouping settings.
 """
+import os
+
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QFileDialog, 
-    QTableWidgetItem, QHeaderView, QAbstractItemView, QSizePolicy, QAbstractSpinBox
+    QWidget, QVBoxLayout, QHBoxLayout, QFileDialog,
+    QTableWidgetItem, QHeaderView, QAbstractItemView, QSizePolicy
 )
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QIntValidator
 from qfluentwidgets import (
-    CardWidget, SimpleCardWidget, HeaderCardWidget, 
-    SpinBox, CheckBox, TimePicker, ComboBox, PrimaryPushButton, PushButton,
-    TableWidget, FluentIcon as FIF, BodyLabel, TitleLabel, SubtitleLabel,
-    ScrollArea, StrongBodyLabel, InfoBar, InfoBarPosition
+    CardWidget, CheckBox, ComboBox, PrimaryPushButton, PushButton,
+    TableWidget, BodyLabel, TitleLabel, SubtitleLabel,
+    ScrollArea, StrongBodyLabel, LineEdit, MessageBoxBase, RoundMenu, Action
 )
 
 from ..viewmodels.config_viewmodel import ConfigViewModel
-
-# Helper for dialogs
-from .search_interface import SearchInterface # Just for reference or sharing types? No.
-
 from ..widgets.draggable_table import DraggableTableWidget
 
 
@@ -111,8 +109,6 @@ class ConfigInterface(ScrollArea):
         # Let's stick to Fluent SpinBox but hide buttons via stylesheet hack or setButtonVisible(False) if exists to save space.
         
         # Use LineEdit with Validator
-        from qfluentwidgets import LineEdit
-        from PySide6.QtGui import QIntValidator
 
         self.minCreditSpin = LineEdit(self.view)
         self.minCreditSpin.setValidator(QIntValidator(0, 30))
@@ -159,7 +155,6 @@ class ConfigInterface(ScrollArea):
         self.dayCombo.setFixedWidth(60) # Safe width
         
         # Simple Text Entry 
-        from qfluentwidgets import LineEdit
         self.startLine = LineEdit(self.view)
         self.startLine.setPlaceholderText("09:00")
         self.startLine.setFixedWidth(60) # Safe width
@@ -444,7 +439,6 @@ class ConfigInterface(ScrollArea):
         # self._mark_dirty() -> Handled by VM Event
 
     def _show_ex_time_menu(self, pos):
-        from qfluentwidgets import RoundMenu, Action
         item = self.exScheduleTable.itemAt(pos)
         if hasattr(item, 'row'): # Validation
             menu = RoundMenu(parent=self)
@@ -462,7 +456,6 @@ class ConfigInterface(ScrollArea):
     
     def _load_settings(self):
         # 프로젝트 data/configs 폴더 경로
-        import os
         data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "data", "configs")
         os.makedirs(data_path, exist_ok=True)
         filename, _ = QFileDialog.getOpenFileName(self, "설정 불러오기", data_path, "JSON Files (*.json)")
@@ -471,7 +464,6 @@ class ConfigInterface(ScrollArea):
     
     def _save_settings(self):
         # 프로젝트 data/configs 폴더 경로
-        import os
         data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "data", "configs")
         os.makedirs(data_path, exist_ok=True)
         filename, _ = QFileDialog.getSaveFileName(self, "설정 저장", data_path, "JSON Files (*.json)")
@@ -486,7 +478,6 @@ class ConfigInterface(ScrollArea):
     
     # Simple add dialog (Needs update to mark dirty)
     def _show_add_dialog(self, list_type):
-        from qfluentwidgets import MessageBoxBase, SubtitleLabel, LineEdit
         
         class AddDialog(MessageBoxBase):
             def __init__(self, parent=None):

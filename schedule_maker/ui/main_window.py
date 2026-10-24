@@ -2,15 +2,10 @@
 Main Window
 Fluent Window with Navigation
 """
-from PySide6.QtWidgets import QApplication, QMessageBox
-from PySide6.QtGui import QIcon, QColor
-from PySide6.QtCore import QThread, Signal, QObject, Qt, QTimer
-import os
+from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import QTimer
 
-from qfluentwidgets import (
-    FluentWindow, NavigationItemPosition, FluentIcon as FIF,
-    SplashScreen, NavigationDisplayMode, InfoBar, InfoBarPosition, StateToolTip
-)
+from qfluentwidgets import FluentWindow, FluentIcon as FIF, SplashScreen
 
 from .interfaces.search_interface import SearchInterface
 from .interfaces.config_interface import ConfigInterface

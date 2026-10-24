@@ -3,7 +3,6 @@
 모든 ViewModel의 부모 클래스로, 데이터 바인딩 및 공통 기능 제공
 """
 from typing import Callable, Any, List, Dict
-import threading
 
 class BaseViewModel:
     """

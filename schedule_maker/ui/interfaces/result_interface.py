@@ -5,7 +5,7 @@ Uses native Qt widgets for instant loading screen display.
 """
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QStackedWidget
 from PySide6.QtWebEngineWidgets import QWebEngineView
-from PySide6.QtCore import QUrl, QTimer, Qt
+from PySide6.QtCore import QUrl, Qt
 from PySide6.QtGui import QFont
 import os
 

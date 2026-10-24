@@ -3,7 +3,7 @@ HTML 시각화 모듈
 시간표 조합을 인터랙티브 HTML로 출력
 """
 from typing import List
-from ..core.models import Schedule, Course
+from ..core.models import Schedule
 import json
 import random
 

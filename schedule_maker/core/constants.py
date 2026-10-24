@@ -57,28 +57,16 @@ class BusinessConstants:
 class SchedulerConfig:
     """시간표 생성 알고리즘 설정값 (중앙화)"""
     
-    # === 목표 및 배치 설정 ===
-    TARGET_RESULTS = 10000          # 목표 시간표 개수
-    BATCH_SIZE = 20                  # 한 번의 DFS에서 찾을 개수
-    
-    # === 병렬 처리 설정 ===
-    USE_PARALLEL = True              # 병렬 처리 사용 여부
-    PARALLEL_WORKERS = None          # Worker 수 (None = CPU 코어 수)
-    
-    # === 타임아웃 설정 (참고용, 실제로는 포화 감지로 자동 종료) ===
-    MAX_TOTAL_TIME_SECONDS = 7.0     # 예상 실행 시간 (강제 종료 안 함)
-    MAX_RESTARTS = 1000              # 최대 Restart 횟수 (무한 루프 방지)
-    SINGLE_DFS_TIMEOUT = 0.5         # 단일 DFS 최대 시간 (미사용)
-    
-    # === 조기 종료 설정 ===
-    SATURATION_CHECK_WINDOW = 100    # 발견율 체크 윈도우 (최근 N회)
-    SATURATION_THRESHOLD = 3         # 최근 N회 중 이 개수 미만 발견 시 종료
-    
-    # === Phase 전환 설정 ===
-    MAX_PURE_FAILURES = 50           # Pure 모드에서 연속 실패 허용 횟수
-    
-    # === 진행 상황 출력 주기 ===
-    PROGRESS_REPORT_INTERVAL = 10    # N회 Restart마다 진행 상황 출력
+    # === 목표 설정 ===
+    TARGET_RESULTS = 10000          # 반환할 최대 시간표 개수 (초과 시 무작위 표본)
+
+    # === 타임아웃 설정 ===
+    MAX_TOTAL_TIME_SECONDS = 10.0    # 전수 탐색 제한 시간 (초과 시 찾은 결과까지만 반환)
+
+    # === Fill 모드 설정 (순수 시간표가 없을 때만 사용) ===
+    MAX_RESTARTS = 1000              # 무작위 채우기 최대 라운드 수
+    SATURATION_CHECK_WINDOW = 100    # 발견율 체크 윈도우 (최근 N라운드)
+    SATURATION_THRESHOLD = 3         # 최근 N라운드 중 이 개수 미만 발견 시 종료
 
 
 
