@@ -1,4 +1,4 @@
-import { AlertCircle, CalendarRange, ChevronLeft, ChevronRight, Loader2, Pin, PinOff, Plus, Repeat2, Sparkles } from 'lucide-react'
+import { AlertCircle, CalendarRange, ChevronLeft, ChevronRight, Loader2, Pin, Plus, Repeat2, Sparkles } from 'lucide-react'
 import { useEffect, useMemo } from 'react'
 import { Badge, Button, cx, EmptyState, IconButton } from '../components/ui'
 import { timeSummary } from '../engine/course'
@@ -30,7 +30,6 @@ export function ResultView({ generation, courses, onAddCourses, ...viewerProps }
       <EmptyState
         icon={<CalendarRange size={44} strokeWidth={1.25} />}
         title="강의를 담으면 바로 시간표가 만들어져요"
-        description="필수·희망 강의를 담고 학점과 공강 조건을 정하면, 가능한 모든 조합을 찾아 보여드려요. 조건을 바꾸면 바로 다시 계산돼요."
         action={<Button variant="primary" onClick={onAddCourses}>강의 담으러 가기</Button>}
       />
     )
@@ -149,13 +148,7 @@ function Results({ output, running, courses, viewer, onViewerChange, notify, pre
                   <Loader2 size={12} className="animate-spin" /> 다시 계산 중
                 </>
               ) : (
-                pins.size > 0 ? (
-                  <>
-                    고정 {pins.size}개 · 후보 <span className="font-semibold text-fg">{filtered.length.toLocaleString()}</span> / {schedules.length.toLocaleString()}개
-                  </>
-                ) : (
-                  <>가능한 조합 {schedules.length.toLocaleString()}개 · 강의를 눌러 고정하면 후보가 좁혀져요</>
-                )
+                <>가능한 조합 {schedules.length.toLocaleString()}개</>
               )}
             </p>
           </div>
@@ -187,44 +180,12 @@ function Results({ output, running, courses, viewer, onViewerChange, notify, pre
           )}
         </div>
 
-        {(pins.size > 0 || output.timedOut || current?.randomFilled) && (
-          <div className="mb-4 space-y-2">
-            {pins.size > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5">
-                {[...pins].map(([name, key]) => (
-                  <span key={name} className="flex h-7 items-center gap-1 rounded-full bg-accent-soft pr-0.5 pl-2.5 text-[13px] font-medium text-accent-fg">
-                    <Pin size={11} fill="currentColor" />
-                    {name}
-                    <span className="font-normal opacity-75">{key === ANY ? '포함' : key.split(',')[0]}</span>
-                    <IconButton label={`${name} 고정 해제`} size="sm" className="size-6 text-accent-fg hover:bg-transparent hover:text-accent-fg" onClick={() => unpin(name)}>
-                      <PinOff size={12} />
-                    </IconButton>
-                  </span>
-                ))}
-                <Button variant="ghost" size="sm" onClick={clearPins}>
-                  모두 해제
-                </Button>
-              </div>
-            )}
-            {output.timedOut && (
-              <p className="rounded-md bg-warning-soft px-3.5 py-2.5 text-[13px] text-warning">
-                조합이 너무 많아 제한 시간 안에 찾은 결과만 보여드려요. 조건을 좁혀 보세요.
-              </p>
-            )}
-            {current?.randomFilled && (
-              <p className="flex items-center gap-2 rounded-md bg-surface-sunken px-3.5 py-2.5 text-[13px] text-fg-muted">
-                <Sparkles size={14} /> 담은 강의만으로는 최소 학점을 채울 수 없어서 ‘전학년’ 교양으로 빈 시간을 채웠어요.
-              </p>
-            )}
-          </div>
-        )}
-
+        {/* 시간표 위에는 아무것도 끼워 넣지 않음 → 고정·재계산해도 시간표가 움직이지 않게 */}
         {current ? (
           <div className={cx('transition-opacity', running && 'opacity-50')}>
             <Timetable
               courses={currentCourses}
               colors={colors}
-              excludedDays={config.excludedDays}
               avoid={showAvoid ? { days: config.excludedDays, times: config.excludedTimes } : undefined}
               preview={preview ?? undefined}
               pinned={new Set(pins.keys())}
@@ -238,19 +199,42 @@ function Results({ output, running, courses, viewer, onViewerChange, notify, pre
             description="학점 범위를 넓히거나, 공강·피하고 싶은 시간을 줄이거나, 희망 강의를 더 담아 보세요."
           />
         )}
+
+        {(output.timedOut || current?.randomFilled) && (
+          <div className="mt-4 space-y-2">
+            {output.timedOut && (
+              <p className="rounded-md bg-warning-soft px-3.5 py-2.5 text-[13px] text-warning">
+                조합이 너무 많아 제한 시간 안에 찾은 결과만 보여드려요. 조건을 좁혀 보세요.
+              </p>
+            )}
+            {current?.randomFilled && (
+              <p className="flex items-center gap-2 rounded-md bg-surface-sunken px-3.5 py-2.5 text-[13px] text-fg-muted">
+                <Sparkles size={14} /> 담은 강의만으로는 최소 학점을 채울 수 없어서 ‘전학년’ 교양으로 빈 시간을 채웠어요.
+              </p>
+            )}
+          </div>
+        )}
+
       </div>
 
       {current && (
         <aside className="space-y-8 xl:pt-[72px]">
           <div>
-            <p className="mb-1 text-[13px] font-medium text-fg-muted">이 시간표의 강의</p>
-            <p className="mb-2 text-[12px] text-fg-subtle">눌러서 고정 · 다시 누르면 해제</p>
+            {/* 높이 고정: '모두 해제'가 생겨도 목록이 밀리지 않게 */}
+            <div className="mb-1 flex h-7 items-center justify-between">
+              <p className="text-[13px] font-medium text-fg-muted">이 시간표의 강의</p>
+              {pins.size > 0 && (
+                <Button variant="ghost" size="sm" onClick={clearPins}>
+                  고정 모두 해제
+                </Button>
+              )}
+            </div>
             <ul className="-mx-2">
               {currentCourses.map((c) => {
                 const color = courseColorVars(colors.get(c.name) ?? 1)
                 const isPinned = pins.has(c.name)
                 return (
-                  <li key={c.id} className={cx('flex items-center rounded-md transition-colors', isPinned ? 'bg-accent-soft' : 'hover:bg-surface-hover')}>
+                  <li key={c.id} className="flex items-center rounded-md transition-colors hover:bg-surface-hover">
                     <button
                       type="button"
                       onClick={() => toggleCourse(c)}
@@ -266,7 +250,6 @@ function Results({ output, running, courses, viewer, onViewerChange, notify, pre
                           ) : output.desiredNames.includes(c.name) ? null : (
                             <Badge>채움</Badge>
                           )}
-                          {isPinned && <Pin size={12} className="shrink-0 text-accent-fg" fill="currentColor" />}
                         </span>
                         <span className="block truncate text-[12px] text-fg-muted">
                           {c.professor} · {c.credits}학점 · {timeSummary(c)}
@@ -274,10 +257,24 @@ function Results({ output, running, courses, viewer, onViewerChange, notify, pre
                       </span>
                     </button>
                     {isPinned && pins.get(c.name) !== ANY && (
-                      <IconButton label="다른 분반으로" size="sm" className="mr-1 text-accent-fg hover:text-accent-fg" onClick={() => cycleSection(c)}>
+                      <IconButton label="다른 분반으로" size="sm" className="text-accent-fg hover:text-accent-fg" onClick={() => cycleSection(c)}>
                         <Repeat2 size={15} />
                       </IconButton>
                     )}
+                    {/* 고정 버튼을 항상 보여 줌: 고정하면 이 분반이 든 시간표만 남음 */}
+                    <button
+                      type="button"
+                      onClick={() => toggleCourse(c)}
+                      aria-pressed={isPinned}
+                      title={isPinned ? '고정 해제' : '이 분반이 든 시간표만 보기'}
+                      className={cx(
+                        'mr-1 flex h-7 shrink-0 items-center gap-1 rounded-full px-2.5 text-[12px] font-medium transition-colors active:scale-95',
+                        isPinned ? 'bg-accent text-fg-on-accent hover:bg-accent-hover' : 'bg-surface-sunken text-fg-muted hover:text-fg',
+                      )}
+                    >
+                      <Pin size={12} fill={isPinned ? 'currentColor' : 'none'} />
+                      {isPinned ? '고정됨' : '고정'}
+                    </button>
                   </li>
                 )
               })}

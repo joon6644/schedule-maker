@@ -101,10 +101,10 @@ const realConfig = parseConfigFile({
 
 describe('Python 엔진과 결과 일치', () => {
   const cases: [string, Partial<ScheduleConfig>, number][] = [
-    ['실제 설정 20~23학점', {}, 4478],
-    ['15~18학점', { minCredits: 15, maxCredits: 18 }, 8984],
-    ['금요일 공강 18~21학점', { minCredits: 18, maxCredits: 21, excludedDays: ['금'] }, 2257],
-    ['평일 오전 제외', { excludedTimes: (['월', '화', '수', '목', '금'] as const).map((day) => ({ day, start: '09:00', end: '10:50' })) }, 209],
+    ['실제 설정 20~23학점', {}, 8099],
+    ['15~18학점 토요일 공강 (토요반 추가 전 값과 같음)', { minCredits: 15, maxCredits: 18, excludedDays: ['토'] }, 8984],
+    ['금요일 공강 18~21학점', { minCredits: 18, maxCredits: 21, excludedDays: ['금'] }, 4150],
+    ['평일 오전 제외', { excludedTimes: (['월', '화', '수', '목', '금'] as const).map((day) => ({ day, start: '09:00', end: '10:50' })) }, 626],
   ]
 
   it.each(cases)('%s', (_label, patch, expected) => {

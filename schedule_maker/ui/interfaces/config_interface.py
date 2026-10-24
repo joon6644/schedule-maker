@@ -137,7 +137,7 @@ class ConfigInterface(ScrollArea):
         self.daysLayout = QHBoxLayout()
         self.daysLayout.setSpacing(4) # Reduced from 10 to 4 to fit in narrow col
         self.day_checkboxes = {}
-        for day in ['월', '화', '수', '목', '금']:
+        for day in ['월', '화', '수', '목', '금', '토']:
             cb = CheckBox(day, self.view)
             # Connect signals to VM
             cb.stateChanged.connect(lambda state, d=day: self.vm.set_excluded_day(d, state == Qt.Checked))
@@ -151,7 +151,7 @@ class ConfigInterface(ScrollArea):
         self.timeInputLayout.setSpacing(2) 
         
         self.dayCombo = ComboBox(self.view)
-        self.dayCombo.addItems(['월', '화', '수', '목', '금'])
+        self.dayCombo.addItems(['월', '화', '수', '목', '금', '토'])
         self.dayCombo.setFixedWidth(60) # Safe width
         
         # Simple Text Entry 

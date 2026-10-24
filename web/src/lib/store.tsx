@@ -7,6 +7,7 @@ export type ListType = 'required' | 'desired'
 export type ThemePref = 'system' | 'light' | 'dark'
 
 export interface AppState {
+  /** 항상 최신 학기 (지난 학기는 보지 않음) */
   termKey: string | null
   /** 학기별 설정 (학기마다 강의가 달라서 따로 보관) */
   configs: Record<string, ScheduleConfig>
@@ -54,8 +55,11 @@ function updateConfig(state: AppState, update: (c: ScheduleConfig) => ScheduleCo
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
-    case 'setTerm':
-      return { ...state, termKey: action.termKey }
+    case 'setTerm': {
+      // 새 학기로 넘어가면 지난 학기 설정은 지움 (강의가 달라 다시 쓸 일이 없음)
+      const kept = state.configs[action.termKey]
+      return { ...state, termKey: action.termKey, configs: kept ? { [action.termKey]: kept } : {} }
+    }
     case 'setTheme':
       return { ...state, theme: action.theme }
     case 'setShowAvoid':

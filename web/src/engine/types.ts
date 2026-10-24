@@ -3,6 +3,8 @@
 export type Day = '월' | '화' | '수' | '목' | '금' | '토' | '일'
 
 export const WEEKDAYS: Day[] = ['월', '화', '수', '목', '금']
+/** 수업이 있는 요일 (토요반 포함) — 공강·피하고 싶은 시간 선택용 */
+export const CLASS_DAYS: Day[] = [...WEEKDAYS, '토']
 
 export interface TimeSlot {
   day: Day

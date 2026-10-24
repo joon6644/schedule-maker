@@ -19,9 +19,9 @@ import { matchesFilter, timeSummary } from '../engine/course'
 import type { CourseData, CourseFilter } from '../engine/types'
 import { useConfig, useStore, type ListType } from '../lib/store'
 
-const LISTS: { type: ListType; title: string; hint: string }[] = [
-  { type: 'required', title: '필수 과목', hint: '모든 시간표에 꼭 넣어요.' },
-  { type: 'desired', title: '희망 과목', hint: '학점 범위 안에서 가능한 만큼 넣어요.' },
+const LISTS: { type: ListType; title: string }[] = [
+  { type: 'required', title: '필수 과목' },
+  { type: 'desired', title: '희망 과목' },
 ]
 
 type Scope = 'any' | 'professor' | 'section'
@@ -76,7 +76,6 @@ export function BasketPanel({ courses, onBrowse }: { courses: CourseData[]; onBr
       <EmptyState
         icon={<BookOpen size={36} strokeWidth={1.5} />}
         title="담은 강의가 없어요"
-        description="강의 검색에서 + 를 눌러 듣고 싶은 강의를 담아 보세요."
         action={<Button onClick={onBrowse}>강의 검색</Button>}
       />
     )
@@ -85,10 +84,9 @@ export function BasketPanel({ courses, onBrowse }: { courses: CourseData[]; onBr
   return (
     <DndContext accessibility={accessibility} sensors={sensors} collisionDetection={pointerWithin} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setDragging(null)}>
       <div className="space-y-6 px-4 pt-1 pb-6">
-        {LISTS.map(({ type, title, hint }) => (
-          <FilterList key={type} type={type} title={title} hint={hint} filters={config[type]} courses={courses} dragging={dragging} />
+        {LISTS.map(({ type, title }) => (
+          <FilterList key={type} type={type} title={title} filters={config[type]} courses={courses} dragging={dragging} />
         ))}
-        <p className="px-4 text-[12px] text-fg-subtle">끌어서 필수 ↔ 희망으로 옮기고, 눌러서 분반을 정해요.</p>
       </div>
       <DragOverlay dropAnimation={null}>
         {draggingFilter && (
@@ -102,10 +100,9 @@ export function BasketPanel({ courses, onBrowse }: { courses: CourseData[]; onBr
   )
 }
 
-function FilterList({ type, title, hint, filters, courses, dragging }: {
+function FilterList({ type, title, filters, courses, dragging }: {
   type: ListType
   title: string
-  hint: string
   filters: CourseFilter[]
   courses: CourseData[]
   dragging: { from: ListType } | null
@@ -140,7 +137,6 @@ function FilterList({ type, title, hint, filters, courses, dragging }: {
           </ul>
         )}
       </div>
-      <p className="px-4 pt-1.5 text-[12px] text-fg-muted">{hint}</p>
     </section>
   )
 }

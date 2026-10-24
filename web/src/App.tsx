@@ -1,4 +1,4 @@
-import { BookOpen, CalendarRange, ChevronDown, Download, Loader2, Monitor, Moon, Search, SlidersHorizontal, Sun, Upload } from 'lucide-react'
+import { BookOpen, CalendarRange, Download, Loader2, Monitor, Moon, Search, SlidersHorizontal, Sun, Upload } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Button, cx, IconButton, Segmented, Toast, type ToastData } from './components/ui'
 import { parseConfigFile, toConfigFile } from './engine/config'
@@ -8,7 +8,7 @@ import { ResultSummary } from './features/ResultSummary'
 import { ResultView } from './features/ResultView'
 import type { PreviewItem } from './features/Timetable'
 import { SearchPanel } from './features/SearchPanel'
-import { useCourses, useGeneration, useTerms, type Term } from './lib/data'
+import { useCourses, useGeneration, useTerms } from './lib/data'
 import { useConfig, useStore, type ThemePref } from './lib/store'
 import { describeChange, EMPTY_VIEWER, reconcileViewer, scheduleKey, type ViewerState } from './lib/viewer'
 import type { GenerationOutput, ScheduleConfig } from './engine/types'
@@ -26,17 +26,20 @@ export default function App() {
 
   useResolvedTheme(state.theme)
 
-  // 첫 방문 시 최신 학기 선택
-  useEffect(() => {
-    if (terms?.length && !terms.some((t) => t.key === state.termKey)) dispatch({ type: 'setTerm', termKey: terms[0].key })
-  }, [terms, state.termKey, dispatch])
-
   // ── 보기 상태 (보던 시간표·고정) + 재계산 알림 ──
   const [viewer, setViewer] = useState<ViewerState>(EMPTY_VIEWER)
   const viewerRef = useRef(viewer)
   viewerRef.current = viewer
   const [toast, setToast] = useState<ToastData | null>(null)
   const notify = useCallback((message: string, action?: ToastData['action']) => setToast({ id: Date.now() + Math.random(), message, action }), [])
+  // 항상 최신 학기만 사용. 새 학기 데이터가 올라오면 그 학기로 넘어가고 한 번 알림
+  const term = terms?.[0] ?? null
+  useEffect(() => {
+    if (!term || state.termKey === term.key) return
+    if (state.termKey) notify(`${term.label} 강의로 바뀌었어요`)
+    dispatch({ type: 'setTerm', termKey: term.key })
+  }, [term, state.termKey, dispatch, notify])
+
   useEffect(() => {
     if (!toast) return
     const t = setTimeout(() => setToast(null), toast.action ? 5000 : 3200)
@@ -160,7 +163,6 @@ export default function App() {
 
   const controls = (
     <>
-      {terms && <TermSelect terms={terms} />}
       <ConfigFileButtons />
       <ThemeButton />
     </>
@@ -176,7 +178,7 @@ export default function App() {
             <Logo />
             <div className="min-w-0">
               <h1 className="truncate text-[17px] leading-tight font-semibold tracking-tight">시간표 메이커</h1>
-              <p className="text-[12px] leading-tight text-fg-muted">명지대학교</p>
+              <p className="text-[12px] leading-tight text-fg-muted">명지대학교{term && ` · ${term.label}`}</p>
             </div>
           </div>
           <div className="px-4 pb-3">
@@ -203,6 +205,7 @@ export default function App() {
       <header className="material sticky top-0 z-30 flex shrink-0 items-center gap-2.5 px-4" style={{ height: 'var(--layout-header-height)' }}>
         <Logo />
         <h1 className="hidden text-[17px] font-semibold tracking-tight min-[420px]:block">시간표 메이커</h1>
+        {term && <span className="text-[12px] text-fg-muted">{term.label}</span>}
         <div className="ml-auto flex items-center gap-1">{controls}</div>
       </header>
       {errorBanner}
@@ -262,27 +265,6 @@ function NavItem({ active, onClick, icon, label, badge }: { active: boolean; onC
         </span>
       )}
     </button>
-  )
-}
-
-function TermSelect({ terms }: { terms: Term[] }) {
-  const { state, dispatch } = useStore()
-  return (
-    <div className="relative">
-      <select
-        value={state.termKey ?? ''}
-        onChange={(e) => dispatch({ type: 'setTerm', termKey: e.target.value })}
-        aria-label="학기"
-        className="h-8 appearance-none rounded-full bg-surface-sunken pr-8 pl-3.5 text-[13px] font-medium outline-none focus:ring-2 focus:ring-accent-soft"
-      >
-        {terms.map((t) => (
-          <option key={t.key} value={t.key}>
-            {t.label}
-          </option>
-        ))}
-      </select>
-      <ChevronDown size={14} strokeWidth={2.5} className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-fg-muted" />
-    </div>
   )
 }
 

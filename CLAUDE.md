@@ -8,7 +8,7 @@
 
 ## 알고리즘 일관성
 - 웹 엔진 `web/src/engine/generator.ts`는 Python `schedule_maker/services/scheduler.py`의 이식판이다. 한쪽을 바꾸면 다른 쪽도 같이 바꾼다.
-- `web/src/engine/generator.test.ts`에 Python 결과와 맞춰 둔 기대값(4478, 8984, 2257, 209)이 있다. 알고리즘을 바꾸면 Python 쪽에서 값을 다시 확인한다.
+- `web/src/engine/generator.test.ts`에 Python 결과와 맞춰 둔 기대값(8099, 8984, 4150, 626)이 있다. 알고리즘을 바꾸면 Python 쪽에서 값을 다시 확인한다.
 
 ## 디자인 시스템 규칙 (Figma 연동)
 - 색·반경·그림자는 `web/src/styles/tokens.css`의 토큰만 사용한다. hex 값을 컴포넌트에 직접 쓰지 않는다. Tailwind 기본 팔레트는 꺼져 있다.

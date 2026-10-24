@@ -498,7 +498,9 @@ class HtmlVisualizer:
         let filteredPosition = -1; // 필터 내 현재 위치
         
         // 요일 및 시간 설정
-        const days = ['월', '화', '수', '목', '금'];
+        const WEEKDAYS = ['월', '화', '수', '목', '금'];
+        // 토요반이 있는 시간표만 토요일 열을 보여줌 (initTimetable 에서 갱신)
+        let days = WEEKDAYS;
         const startHour = 9;
         const endHour = 22;  // 22:00까지 표시 (야간 수업 대응)
         const slotsPerHour = 2; // 30분 단위
@@ -565,9 +567,12 @@ class HtmlVisualizer:
         }
         
         // 시간표 그리드 초기화
-        function initTimetable() {
+        function initTimetable(schedule) {
             const table = document.getElementById('schedule-table');
             table.innerHTML = '';
+            const hasSat = !!schedule && schedule.courses.some(c => c.time_slots.some(s => s.day === '토'));
+            days = hasSat ? [...WEEKDAYS, '토'] : WEEKDAYS;
+            table.style.gridTemplateColumns = `60px repeat(${days.length}, 1fr)`;
             
             // 빈 좌상단 셀
             table.innerHTML += '<div class="day-header"></div>';
@@ -752,7 +757,7 @@ class HtmlVisualizer:
             }
             
             // 시간표 그리드 초기화
-            initTimetable();
+            initTimetable(schedule);
             
             // 강의 블록 배치 (픽셀 기반 absolute positioning)
             schedule.courses.forEach(course => {

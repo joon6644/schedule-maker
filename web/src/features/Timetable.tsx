@@ -21,7 +21,6 @@ export interface PreviewItem {
 export function Timetable({
   courses,
   colors,
-  excludedDays,
   avoid,
   preview,
   pinned,
@@ -29,7 +28,6 @@ export function Timetable({
 }: {
   courses: CourseData[]
   colors: Map<string, number>
-  excludedDays: Day[]
   avoid?: { days: Day[]; times: ExcludedTime[] }
   /** 강의 검색에서 펼친 과목·분반 미리보기 (분반마다 색 번호) */
   preview?: PreviewItem[]
@@ -61,15 +59,12 @@ export function Timetable({
       {/* 요일 헤더 */}
       <div className="grid pb-2" style={{ gridTemplateColumns: columns }}>
         <div />
-        {days.map((d) => {
-          const off = excludedDays.includes(d)
-          return (
-            <div key={d} className="flex items-baseline justify-center gap-1">
-              <span className={cx('text-[13px] font-semibold', off ? 'text-fg-subtle' : 'text-fg-muted')}>{d}</span>
-              {off && <span className="text-[11px] text-fg-subtle">공강</span>}
-            </div>
-          )
-        })}
+        {/* 틀은 조건과 상관없이 항상 같은 모양 */}
+        {days.map((d) => (
+          <div key={d} className="text-center text-[13px] font-semibold text-fg-muted">
+            {d}
+          </div>
+        ))}
       </div>
 
       <div className="grid" style={{ gridTemplateColumns: columns }}>
@@ -98,7 +93,7 @@ export function Timetable({
             }}
           >
             {/* 피하고 싶은 시간 (표시를 켠 경우) */}
-            {avoid?.days.includes(day) && <div className="hatch absolute inset-0" title="공강" />}
+            {avoid?.days.includes(day) && <div className="hatch absolute inset-0" />}
             {avoid?.times
               .filter((t) => t.day === day)
               .map((t) => (
@@ -159,7 +154,7 @@ export function Timetable({
                       onClick={() => onCourseClick?.(course)}
                       className={cx(
                         // 각진 블록: 시간표다운 정돈된 인상
-                        'animate-fade-in absolute inset-x-[2px] overflow-hidden rounded-[2px] text-left transition hover:brightness-[0.97] active:scale-[0.98]',
+                        'group animate-fade-in absolute inset-x-[2px] overflow-hidden rounded-[2px] text-left transition hover:brightness-[0.97] active:scale-[0.98]',
                         // 미리보기 중에는 원래 시간표를 희미하게
                         // (opacity 대신 filter: 페이드인 애니메이션의 opacity 에 덮이지 않도록)
                         previewing && '[filter:opacity(0.3)_saturate(0.6)]',
@@ -172,8 +167,13 @@ export function Timetable({
                         color: color.fg,
                         ['--tw-ring-color' as string]: color.bar,
                       }}
-                      title={`${course.name} · ${course.professor} · ${s.start}~${s.end}${s.room ? ` · ${s.room}` : ''}`}
+                      title={`${course.name} · ${course.professor} · ${s.start}~${s.end}${s.room ? ` · ${s.room}` : ''}
+${isPinned ? '눌러서 고정 해제' : '눌러서 고정'}`}
                     >
+                      {/* 마우스를 올리면 고정할 수 있다는 표시 */}
+                      {!isPinned && onCourseClick && (
+                        <Pin size={11} className="absolute top-1 right-1 opacity-0 transition-opacity group-hover:opacity-60 group-focus-visible:opacity-60" />
+                      )}
                       <span className={cx('block px-1.5 sm:px-2', short ? 'pt-0.5 sm:pt-1' : 'pt-1 sm:pt-1.5')}>
                         <span className="flex items-start gap-1">
                           {/* 단어 단위로 줄바꿈하되, 띄어쓰기 없는 긴 과목명은 글자 단위로 넘김 */}

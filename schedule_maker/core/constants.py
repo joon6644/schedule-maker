@@ -42,7 +42,7 @@ class BusinessConstants:
     MAX_SCHEDULE_RESULTS = 100000
     
     # 시간 관련
-    DAYS_OF_WEEK = ['월', '화', '수', '목', '금']
+    DAYS_OF_WEEK = ['월', '화', '수', '목', '금', '토']
     TIME_SLOT_UNIT = 30  # 분 단위
     
     # Random Fill 제외 과목 (하드코딩)
@@ -85,7 +85,6 @@ class PathConstants:
     CONFIG_PATH = f'{DATA_DIR}/{CONFIG_FILENAME}'
     
     # CSV 데이터 파일
-    CSV_FILENAME = 'mju_2026_2.csv'
     CSV_PATTERN = 'mju_*.csv'
     
     # 결과 파일

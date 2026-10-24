@@ -11,12 +11,14 @@ export interface Term {
 }
 
 const dataUrl = (file: string) => `${import.meta.env.BASE_URL}data/${file}`
+/** 데이터 파일은 이름이 고정이라(해시 없음) 매번 서버에 확인 → 새 학기·데이터 수정이 바로 보임 (안 바뀌었으면 304) */
+const fetchData = (file: string) => fetch(dataUrl(file), { cache: 'no-cache' })
 
 export function useTerms() {
   const [terms, setTerms] = useState<Term[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   useEffect(() => {
-    fetch(dataUrl('terms.json'))
+    fetchData('terms.json')
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
       .then(setTerms)
       .catch((e) => setError(`학기 목록을 불러오지 못했습니다 (${e.message})`))
@@ -31,7 +33,7 @@ export function useCourses(termKey: string | null) {
     if (!termKey) return
     let cancelled = false
     setError(null)
-    fetch(dataUrl(`${termKey}.json`))
+    fetchData(`${termKey}.json`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
       .then((d: { courses: CourseData[] }) => !cancelled && setState({ key: termKey, courses: d.courses }))
       .catch((e) => !cancelled && setError(`강의 데이터를 불러오지 못했습니다 (${e.message})`))

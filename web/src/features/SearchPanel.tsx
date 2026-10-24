@@ -127,13 +127,13 @@ export function SearchPanel({ courses, onPreview }: {
           )}
         </div>
         <p className="px-0.5 text-[12px] text-fg-muted tabular-nums">
-          {groups.length.toLocaleString()}개 과목 · 눌러서 분반 보기
+          {groups.length.toLocaleString()}개 과목
         </p>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4">
         {groups.length === 0 ? (
-          <EmptyState icon={<Search size={36} strokeWidth={1.5} />} title="검색 결과 없음" description="띄어쓰기로 여러 단어를 함께 검색할 수 있어요." />
+          <EmptyState icon={<Search size={36} strokeWidth={1.5} />} title="검색 결과 없음" />
         ) : (
           <ul>
             {groups.slice(0, limit).map((g) => {
