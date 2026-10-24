@@ -299,6 +299,9 @@ class ScheduleGenerator:
                         return
 
         for req_schedule in required_combinations:
+            # 필수 강의만으로 최대 학점을 넘는 조합은 제외
+            if req_schedule.total_credits > max_credits:
+                continue
             backtrack(req_schedule.copy(), 0)
             if stopped:
                 break

@@ -121,3 +121,14 @@ def test_required_course_excluded_time_enforcement(mock_courses, basic_config):
     with pytest.raises(GenerationError):
         generator.generate_all_schedules()
 
+
+
+def test_required_over_max_credits_excluded(mock_courses, basic_config):
+    # Required: Math(3) + English(3) = 6 > max 5 → 결과 없음 (최대 학점 초과 시간표 금지)
+    basic_config.max_credits = 5
+    basic_config.required_filters = [CourseFilter(name='Math'), CourseFilter(name='English')]
+
+    generator = ScheduleGenerator(mock_courses, basic_config)
+    results = generator.generate_all_schedules()
+
+    assert all(s.total_credits <= 5 for s in results)
