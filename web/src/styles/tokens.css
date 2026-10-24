@@ -1,0 +1,142 @@
+/*
+ * Design Tokens — Figma 변수와 1:1로 대응하는 단일 출처 (Single Source of Truth)
+ *
+ * 디자인 모티브: Apple (iOS/macOS 시스템 색, apple.com 텍스트 색)
+ *   - 배경 위계: systemBackground → secondarySystemBackground(사이드바) → 그룹 셀
+ *   - 구분선 없이 배경 대비와 여백으로 영역을 나눔
+ *   - 강의 색: iOS 시스템 색(blue, green, orange, purple, pink, teal, yellow, indigo)의 연한 틴트
+ *
+ * 이름 규칙:  CSS  --color-surface-raised   ↔   Figma  color/surface/raised
+ *             CSS  --color-surface          ↔   Figma  color/surface/default (하위 토큰이 있는 경우)
+ *             CSS  --radius-md              ↔   Figma  radius/md
+ * Figma 컬렉션: "Color · Light", "Color · Dark" (Starter 플랜: 모드 1개 제한), "Radius" + 이펙트 스타일 shadow/*
+ *
+ * 컴포넌트에서는 색상 값을 직접 쓰지 말고 반드시 이 토큰(또는 Tailwind 매핑)을 사용할 것.
+ * 자세한 협업 방식은 docs/figma-workflow.md 참고.
+ */
+
+@theme static {
+  /* Tailwind 기본 팔레트 비활성화 → 토큰에 없는 색은 쓸 수 없음 */
+  --color-*: initial;
+
+  /* ── Color / Background & Surface ─────────────────── */
+  --color-bg: #ffffff; /* 메인 영역 (systemBackground) */
+  --color-surface: #f5f5f7; /* 사이드바·그룹 배경 (apple.com gray) */
+  --color-surface-raised: #ffffff; /* 그룹 위의 셀 */
+  --color-surface-sunken: #7676801f; /* 검색창·세그먼트 트랙 (tertiarySystemFill) */
+  --color-surface-hover: #0000000a;
+  --color-thumb: #ffffff; /* 세그먼트 선택 표시 */
+
+  /* ── Color / Border (거의 쓰지 않음) ─────────────────── */
+  --color-border: #3c3c434a; /* separator */
+  --color-border-strong: #c6c6c8; /* opaqueSeparator */
+  --color-grid: #3c3c4317; /* 시간표 격자 (희미하게) */
+
+  /* ── Color / Text ─────────────────────────────────── */
+  --color-fg: #1d1d1f;
+  --color-fg-muted: #6e6e73;
+  --color-fg-subtle: #a1a1a6;
+  --color-fg-on-accent: #ffffff;
+
+  /* ── Color / Accent (systemBlue) ──────────────────── */
+  --color-accent: #007aff;
+  --color-accent-hover: #0062cc;
+  --color-accent-soft: #007aff1f;
+  --color-accent-fg: #0066cc;
+
+  /* ── Color / Role ─────────────────────────────────── */
+  --color-required: #ff3b30;
+  --color-required-soft: #ff3b301f;
+  --color-desired: #5856d6;
+  --color-desired-soft: #5856d61f;
+  --color-warning: #c93400;
+  --color-warning-soft: #ff95001f;
+  --color-danger: #ff3b30;
+  --color-success: #248a3d;
+  --color-toggle: #34c759; /* iOS 스위치 켜짐 (systemGreen) */
+
+  /* ── Color / Timetable course palette (iOS system colors) ── */
+  --color-course-1-bg: #e5f0ff; --color-course-1-fg: #0058cc; --color-course-1-bar: #007aff; /* blue */
+  --color-course-2-bg: #e4f6e9; --color-course-2-fg: #1b7a34; --color-course-2-bar: #34c759; /* green */
+  --color-course-3-bg: #fff1de; --color-course-3-fg: #a35400; --color-course-3-bar: #ff9500; /* orange */
+  --color-course-4-bg: #f5e9fb; --color-course-4-fg: #7a2e9e; --color-course-4-bar: #af52de; /* purple */
+  --color-course-5-bg: #ffe6eb; --color-course-5-fg: #b5153a; --color-course-5-bar: #ff2d55; /* pink */
+  --color-course-6-bg: #e2f4f7; --color-course-6-fg: #13707f; --color-course-6-bar: #30b0c7; /* teal */
+  --color-course-7-bg: #fff6d1; --color-course-7-fg: #7d6000; --color-course-7-bar: #ffcc00; /* yellow */
+  --color-course-8-bg: #ececfb; --color-course-8-fg: #3634a3; --color-course-8-bar: #5856d6; /* indigo */
+
+  /* ── Shadow ───────────────────────────────────────── */
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.06);
+  --shadow-md: 0 3px 8px rgb(0 0 0 / 0.12), 0 3px 1px rgb(0 0 0 / 0.04); /* iOS 세그먼트 thumb */
+  --shadow-lg: 0 8px 28px rgb(0 0 0 / 0.14), 0 1px 3px rgb(0 0 0 / 0.06); /* 떠 있는 탭 바·토스트 */
+
+  /* ── Radius ───────────────────────────────────────── */
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 22px;
+
+  /* ── Typography ───────────────────────────────────── */
+  /* macOS/iOS 에서는 SF Pro + Apple SD Gothic Neo, 그 외에서는 Pretendard */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Apple SD Gothic Neo', 'Pretendard Variable', Pretendard,
+    system-ui, 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+}
+
+:root {
+  color-scheme: light;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-bg: #000000;
+  --color-surface: #1c1c1e;
+  --color-surface-raised: #2c2c2e;
+  --color-surface-sunken: #7676803d;
+  --color-surface-hover: #ffffff0f;
+  --color-thumb: #636366;
+
+  --color-border: #54545899;
+  --color-border-strong: #38383a;
+  --color-grid: #54545838;
+
+  --color-fg: #f5f5f7;
+  --color-fg-muted: #98989d;
+  --color-fg-subtle: #636366;
+  --color-fg-on-accent: #ffffff;
+
+  --color-accent: #0a84ff;
+  --color-accent-hover: #409cff;
+  --color-accent-soft: #0a84ff38;
+  --color-accent-fg: #409cff;
+
+  --color-required: #ff453a;
+  --color-required-soft: #ff453a33;
+  --color-desired: #7d7aff;
+  --color-desired-soft: #5e5ce638;
+  --color-warning: #ff9f0a;
+  --color-warning-soft: #ff9f0a2e;
+  --color-danger: #ff453a;
+  --color-success: #30d158;
+  --color-toggle: #30d158;
+
+  --color-course-1-bg: #0f2a4a; --color-course-1-fg: #8ec5ff; --color-course-1-bar: #0a84ff;
+  --color-course-2-bg: #11331c; --color-course-2-fg: #7ee29a; --color-course-2-bar: #30d158;
+  --color-course-3-bg: #3a2709; --color-course-3-fg: #ffc46b; --color-course-3-bar: #ff9f0a;
+  --color-course-4-bg: #301a3b; --color-course-4-fg: #dda6f7; --color-course-4-bar: #bf5af2;
+  --color-course-5-bg: #3d1219; --color-course-5-fg: #ff9aae; --color-course-5-bar: #ff375f;
+  --color-course-6-bg: #0e2f35; --color-course-6-fg: #8fe0ee; --color-course-6-bar: #40c8e0;
+  --color-course-7-bg: #382f07; --color-course-7-fg: #ffe57a; --color-course-7-bar: #ffd60a;
+  --color-course-8-bg: #1e1d45; --color-course-8-fg: #a9a8f5; --color-course-8-bar: #5e5ce6;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-md: 0 3px 8px rgb(0 0 0 / 0.4), 0 3px 1px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 8px 28px rgb(0 0 0 / 0.55), 0 1px 3px rgb(0 0 0 / 0.3);
+}
+
+:root {
+  /* ── Layout ───────────────────────────────────────── */
+  --layout-header-height: 56px;
+  --layout-sidebar-width: 400px;
+  --timetable-hour-height: 58px;
+}
