@@ -7,9 +7,11 @@ import { assignColors, courseColorVars } from '../lib/courseColors'
 import type { GenerationState } from '../lib/data'
 import { useConfig, useStore } from '../lib/store'
 import { ANY, filterByPins, matchesPins, scheduleKey, type Pins, type ViewerState } from '../lib/viewer'
-import { Timetable } from './Timetable'
+import { Timetable, type PreviewItem } from './Timetable'
 
 interface ViewerProps {
+  /** 강의 검색에서 고른 과목·분반 미리보기 */
+  preview?: PreviewItem[] | null
   /** 보고 있는 시간표와 고정한 강의 (App 이 보관 → 재계산·탭 이동에도 유지) */
   viewer: ViewerState
   onViewerChange: (viewer: ViewerState) => void
@@ -52,7 +54,7 @@ export function ResultView({ generation, courses, onAddCourses, ...viewerProps }
   return <Results output={output} running={generation.status === 'running'} courses={courses} {...viewerProps} />
 }
 
-function Results({ output, running, courses, viewer, onViewerChange, notify }: ViewerProps & {
+function Results({ output, running, courses, viewer, onViewerChange, notify, preview }: ViewerProps & {
   output: GenerationOutput
   running: boolean
   courses: CourseData[]
@@ -68,7 +70,9 @@ function Results({ output, running, courses, viewer, onViewerChange, notify }: V
   const index = Math.max(0, viewer.key ? filtered.findIndex((s) => scheduleKey(s) === viewer.key) : 0)
   const current = filtered[index]
   const currentCourses = current ? resolve(current) : []
-  const colors = useMemo(() => assignColors([...output.requiredNames, ...output.desiredNames]), [output])
+  // 지금 보이는 시간표의 강의끼리만 색을 나눠서, 한 화면 안에서는 색이 겹치지 않게
+  const shownNames = [...new Set(currentCourses.map((c) => c.name))].join('|')
+  const colors = useMemo(() => assignColors(shownNames ? shownNames.split('|') : []), [shownNames])
 
   const go = (delta: number) => {
     if (!filtered.length) return
@@ -156,14 +160,15 @@ function Results({ output, running, courses, viewer, onViewerChange, notify }: V
             </p>
           </div>
           {current && (
-            <div className="flex w-full items-end justify-between gap-5 sm:ml-auto sm:w-auto">
+            <div className="flex w-full items-center justify-between gap-5 sm:ml-auto sm:w-auto">
+              {/* 왼쪽 제목 블록과 같은 글자 크기·줄 높이 → '시간표'↔'20학점', 설명↔'8과목' 이 같은 줄 */}
               <div className="sm:text-right">
-                <p className="text-[26px] leading-none font-bold tracking-tight tabular-nums">
+                <p className="text-[28px] leading-tight font-bold tracking-tight tabular-nums">
                   {current.totalCredits}
-                  <span className="ml-0.5 text-[14px] font-semibold text-fg-muted">학점</span>
+                  <span className="ml-0.5 text-[15px] font-semibold text-fg-muted">학점</span>
                 </p>
-                <p className="mt-1 text-[12px] text-fg-muted tabular-nums">
-                  {currentCourses.length}과목 · 목표 {config.minCredits}–{config.maxCredits}
+                <p className="mt-0.5 text-[13px] text-fg-muted tabular-nums">
+                  {currentCourses.length}과목 · 목표 {config.minCredits}–{config.maxCredits}학점
                 </p>
               </div>
               <div className="flex h-9 items-center rounded-full bg-surface-sunken px-0.5">
@@ -207,7 +212,7 @@ function Results({ output, running, courses, viewer, onViewerChange, notify }: V
               </p>
             )}
             {current?.randomFilled && (
-              <p className="flex items-center gap-2 rounded-md bg-desired-soft px-3.5 py-2.5 text-[13px] text-desired">
+              <p className="flex items-center gap-2 rounded-md bg-surface-sunken px-3.5 py-2.5 text-[13px] text-fg-muted">
                 <Sparkles size={14} /> 담은 강의만으로는 최소 학점을 채울 수 없어서 ‘전학년’ 교양으로 빈 시간을 채웠어요.
               </p>
             )}
@@ -221,6 +226,7 @@ function Results({ output, running, courses, viewer, onViewerChange, notify }: V
               colors={colors}
               excludedDays={config.excludedDays}
               avoid={showAvoid ? { days: config.excludedDays, times: config.excludedTimes } : undefined}
+              preview={preview ?? undefined}
               pinned={new Set(pins.keys())}
               onCourseClick={toggleCourse}
             />
@@ -256,9 +262,9 @@ function Results({ output, running, courses, viewer, onViewerChange, notify }: V
                         <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
                           <span className="min-w-0 text-[14px] leading-snug font-semibold tracking-tight break-keep [overflow-wrap:anywhere]">{c.name}</span>
                           {requiredSet.has(c.name) ? (
-                            <Badge tone="required">필수</Badge>
+                            <Badge tone="accent">필수</Badge>
                           ) : output.desiredNames.includes(c.name) ? null : (
-                            <Badge tone="desired">채움</Badge>
+                            <Badge>채움</Badge>
                           )}
                           {isPinned && <Pin size={12} className="shrink-0 text-accent-fg" fill="currentColor" />}
                         </span>

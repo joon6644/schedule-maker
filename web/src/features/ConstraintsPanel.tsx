@@ -1,6 +1,5 @@
-import { Minus, Plus } from 'lucide-react'
 import { useState } from 'react'
-import { Button, cx, ListRow, Section, Segmented, Stepper, Switch } from '../components/ui'
+import { AddRow, Button, cx, ListRow, RemoveButton, Section, Segmented, Stepper, Switch } from '../components/ui'
 import { toMinutes } from '../engine/course'
 import { WEEKDAYS, type Day, type ExcludedTime } from '../engine/types'
 import { useConfig, useStore } from '../lib/store'
@@ -74,16 +73,7 @@ function AvoidTimes() {
       {open ? (
         <Editor onClose={() => setOpen(false)} />
       ) : (
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="flex min-h-11 w-full items-center gap-3 px-4 text-left text-[15px] text-accent-fg transition active:opacity-60"
-        >
-          <span className="flex size-[22px] items-center justify-center rounded-full bg-toggle text-fg-on-accent">
-            <Plus size={14} strokeWidth={3} />
-          </span>
-          추가
-        </button>
+        <AddRow label="추가" onClick={() => setOpen(true)} />
       )}
 
       {!empty && (
@@ -97,18 +87,10 @@ function AvoidTimes() {
 
 function Row({ days, detail, onRemove }: { days: Day[]; detail: string; onRemove: () => void }) {
   return (
-    <div className="flex min-h-11 items-center gap-3 px-4 py-1.5">
-      <button
-        type="button"
-        aria-label="삭제"
-        title="삭제"
-        onClick={onRemove}
-        className="flex size-[22px] shrink-0 items-center justify-center rounded-full bg-required text-fg-on-accent transition active:scale-90"
-      >
-        <Minus size={14} strokeWidth={3} />
-      </button>
+    <div className="flex min-h-11 items-center gap-3 py-1 pr-2 pl-4">
       <span className="flex-1 text-[15px]">{dayLabel(days)}</span>
       <span className="text-[15px] text-fg-muted tabular-nums">{detail}</span>
+      <RemoveButton onClick={onRemove} />
     </div>
   )
 }

@@ -23,6 +23,7 @@ export type Action =
   | { type: 'addFilter'; list: ListType; filter: CourseFilter }
   | { type: 'removeFilter'; list: ListType; index: number }
   | { type: 'moveFilter'; list: ListType; index: number }
+  | { type: 'updateFilter'; list: ListType; index: number; filter: CourseFilter }
   | { type: 'setCredits'; min: number; max: number }
   | { type: 'toggleDay'; day: Day }
   | { type: 'addExcludedTime'; time: ExcludedTime }
@@ -81,6 +82,8 @@ function reducer(state: AppState, action: Action): AppState {
         const filter = c[from][action.index]
         return { ...c, [from]: c[from].filter((_, i) => i !== action.index), [to]: [...c[to], filter] }
       })
+    case 'updateFilter':
+      return updateConfig(state, (c) => ({ ...c, [action.list]: c[action.list].map((f, i) => (i === action.index ? action.filter : f)) }))
     case 'setCredits':
       return updateConfig(state, (c) => ({ ...c, minCredits: action.min, maxCredits: action.max }))
     case 'toggleDay':

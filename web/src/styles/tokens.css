@@ -1,10 +1,13 @@
 /*
  * Design Tokens — Figma 변수와 1:1로 대응하는 단일 출처 (Single Source of Truth)
  *
- * 디자인 모티브: Apple (iOS/macOS 시스템 색, apple.com 텍스트 색)
- *   - 배경 위계: systemBackground → secondarySystemBackground(사이드바) → 그룹 셀
- *   - 구분선 없이 배경 대비와 여백으로 영역을 나눔
- *   - 강의 색: iOS 시스템 색(blue, green, orange, purple, pink, teal, yellow, indigo)의 연한 틴트
+ * 디자인 원칙
+ *   1. 60·30·10 — 중립(회색) 60%, 보조(면·글자 위계) 30%, 강조색 10%. 강조색은 하나(accent)만.
+ *      필수/희망 같은 '역할'에 색을 따로 주지 않음 (필수 = accent, 희망 = 중립).
+ *      빨강(danger)은 오류·삭제에만, 노랑(warning)은 경고 문구에만.
+ *   2. OKLCH 균일 팔레트 — 강의 색 10개는 같은 밝기·채도에 색상(hue)만 다름
+ *      (Radix Colors / Tailwind v4 와 같은 방식). 배경 L=0.955 C=0.03, 글자 L=0.42 C=0.075 → 대비 7:1 이상
+ *   3. 배경 위계 — bg(메인) → surface(사이드바·그룹 배경) → surface-raised(셀). 구분선 대신 배경 대비
  *
  * 이름 규칙:  CSS  --color-surface-raised   ↔   Figma  color/surface/raised
  *             CSS  --color-surface          ↔   Figma  color/surface/default (하위 토큰이 있는 경우)
@@ -38,32 +41,31 @@
   --color-fg-subtle: #a1a1a6;
   --color-fg-on-accent: #ffffff;
 
-  /* ── Color / Accent (systemBlue) ──────────────────── */
-  --color-accent: #007aff;
-  --color-accent-hover: #0062cc;
-  --color-accent-soft: #007aff1f;
-  --color-accent-fg: #0066cc;
+  /* ── Color / Accent (유일한 강조색, OKLCH 0.52 0.14 262) ── */
+  --color-accent: #3a65b8;
+  --color-accent-hover: #2d54a0;
+  --color-accent-soft: #e7f1ff;
+  --color-accent-fg: #3057a3;
+  --color-toggle: #3a65b8; /* 스위치 켜짐 = 강조색 */
 
-  /* ── Color / Role ─────────────────────────────────── */
-  --color-required: #ff3b30;
-  --color-required-soft: #ff3b301f;
-  --color-desired: #5856d6;
-  --color-desired-soft: #5856d61f;
-  --color-warning: #c93400;
-  --color-warning-soft: #ff95001f;
-  --color-danger: #ff3b30;
-  --color-success: #248a3d;
-  --color-toggle: #34c759; /* iOS 스위치 켜짐 (systemGreen) */
+  /* ── Color / Status (오류·경고 문구에만) ─────────────── */
+  --color-danger: #c13c3b;
+  --color-danger-soft: #fceeec;
+  --color-warning: #9a6418;
+  --color-warning-soft: #fdf1d8;
+  --color-success: #2e7d4a;
 
-  /* ── Color / Timetable course palette (iOS system colors) ── */
-  --color-course-1-bg: #e5f0ff; --color-course-1-fg: #0058cc; --color-course-1-bar: #007aff; /* blue */
-  --color-course-2-bg: #e4f6e9; --color-course-2-fg: #1b7a34; --color-course-2-bar: #34c759; /* green */
-  --color-course-3-bg: #fff1de; --color-course-3-fg: #a35400; --color-course-3-bar: #ff9500; /* orange */
-  --color-course-4-bg: #f5e9fb; --color-course-4-fg: #7a2e9e; --color-course-4-bar: #af52de; /* purple */
-  --color-course-5-bg: #ffe6eb; --color-course-5-fg: #b5153a; --color-course-5-bar: #ff2d55; /* pink */
-  --color-course-6-bg: #e2f4f7; --color-course-6-fg: #13707f; --color-course-6-bar: #30b0c7; /* teal */
-  --color-course-7-bg: #fff6d1; --color-course-7-fg: #7d6000; --color-course-7-bar: #ffcc00; /* yellow */
-  --color-course-8-bg: #ececfb; --color-course-8-fg: #3634a3; --color-course-8-bar: #5856d6; /* indigo */
+  /* ── Color / Timetable course palette (OKLCH 균일: 10가지 hue 를 36° 간격으로) ── */
+  --color-course-1-bg: #e3f2ff; --color-course-1-fg: #304e75; --color-course-1-bar: #6b9bd8; /* blue   255 */
+  --color-course-2-bg: #dbf6fe; --color-course-2-fg: #035669; --color-course-2-bar: #3aa7c4; /* cyan   219 */
+  --color-course-3-bg: #dbf7f2; --color-course-3-fg: #005a51; --color-course-3-bar: #38ad9e; /* teal   183 */
+  --color-course-4-bg: #e4f6e5; --color-course-4-fg: #2f5834; --color-course-4-bar: #6baa72; /* green  147 */
+  --color-course-5-bg: #f0f2dc; --color-course-5-fg: #4f511b; --color-course-5-bar: #9b9e4d; /* olive  111 */
+  --color-course-6-bg: #fceedb; --color-course-6-fg: #654617; --color-course-6-bar: #be8e48; /* sand    75 */
+  --color-course-7-bg: #ffeae2; --color-course-7-fg: #703e2d; --color-course-7-bar: #d08167; /* clay    39 */
+  --color-course-8-bg: #ffe8ee; --color-course-8-fg: #6f3b49; --color-course-8-bar: #ce7c92; /* red      3 */
+  --color-course-9-bg: #fceafb; --color-course-9-fg: #633e62; --color-course-9-bar: #bb81ba; /* rose   327 */
+  --color-course-10-bg: #f0edff; --color-course-10-fg: #4d4573; --color-course-10-bar: #988cd4; /* violet 291 */
 
   /* ── Shadow ───────────────────────────────────────── */
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.06);
@@ -89,49 +91,51 @@
 [data-theme='dark'] {
   color-scheme: dark;
 
-  --color-bg: #000000;
-  --color-surface: #1c1c1e;
-  --color-surface-raised: #2c2c2e;
-  --color-surface-sunken: #7676803d;
-  --color-surface-hover: #ffffff0f;
-  --color-thumb: #636366;
+  /* 순수 검정 대신 짙은 회색 (눈부심을 줄이고 면 구분이 보이도록) — OKLCH L 0.22~0.30 */
+  --color-bg: #222325;
+  --color-surface: #1b1b1e;
+  --color-surface-raised: #2d2e30;
+  --color-surface-sunken: #ffffff14;
+  --color-surface-hover: #ffffff0d;
+  --color-thumb: #4d4d4f;
 
-  --color-border: #54545899;
-  --color-border-strong: #38383a;
-  --color-grid: #54545838;
+  --color-border: #ffffff26;
+  --color-border-strong: #424244;
+  --color-grid: #ffffff12;
 
-  --color-fg: #f5f5f7;
-  --color-fg-muted: #98989d;
-  --color-fg-subtle: #636366;
+  /* 글자도 순백 대신 한 단계 낮춘 밝기 (본문 대비 12.7:1) */
+  --color-fg: #e7e7ea;
+  --color-fg-muted: #aaaaad;
+  --color-fg-subtle: #747477;
   --color-fg-on-accent: #ffffff;
 
-  --color-accent: #0a84ff;
-  --color-accent-hover: #409cff;
-  --color-accent-soft: #0a84ff38;
-  --color-accent-fg: #409cff;
+  --color-accent: #4972c0; /* 버튼 채움: 흰 글자 대비 4.7 */
+  --color-accent-hover: #5781d1;
+  --color-accent-soft: #2c3d5d;
+  --color-accent-fg: #9ebef8; /* 글자용 */
+  --color-toggle: #4972c0;
 
-  --color-required: #ff453a;
-  --color-required-soft: #ff453a33;
-  --color-desired: #7d7aff;
-  --color-desired-soft: #5e5ce638;
-  --color-warning: #ff9f0a;
-  --color-warning-soft: #ff9f0a2e;
-  --color-danger: #ff453a;
-  --color-success: #30d158;
-  --color-toggle: #30d158;
+  --color-danger: #e97871;
+  --color-danger-soft: #562d2a;
+  --color-warning: #e6bd77;
+  --color-warning-soft: #4b3a1d;
+  --color-success: #6bc48a;
 
-  --color-course-1-bg: #0f2a4a; --color-course-1-fg: #8ec5ff; --color-course-1-bar: #0a84ff;
-  --color-course-2-bg: #11331c; --color-course-2-fg: #7ee29a; --color-course-2-bar: #30d158;
-  --color-course-3-bg: #3a2709; --color-course-3-fg: #ffc46b; --color-course-3-bar: #ff9f0a;
-  --color-course-4-bg: #301a3b; --color-course-4-fg: #dda6f7; --color-course-4-bar: #bf5af2;
-  --color-course-5-bg: #3d1219; --color-course-5-fg: #ff9aae; --color-course-5-bar: #ff375f;
-  --color-course-6-bg: #0e2f35; --color-course-6-fg: #8fe0ee; --color-course-6-bar: #40c8e0;
-  --color-course-7-bg: #382f07; --color-course-7-fg: #ffe57a; --color-course-7-bar: #ffd60a;
-  --color-course-8-bg: #1e1d45; --color-course-8-fg: #a9a8f5; --color-course-8-bar: #5e5ce6;
+  /* 강의 색: 회색 바탕 위에서도 구분되도록 L 0.355, 글자 L 0.92 (대비 8.7:1) */
+  --color-course-1-bg: #2c3d53; --color-course-1-fg: #cfe7ff; --color-course-1-bar: #73a1dc;
+  --color-course-2-bg: #1d414c; --color-course-2-fg: #c0edfb; --color-course-2-bar: #49adc9;
+  --color-course-3-bg: #1d443e; --color-course-3-fg: #c1f0e8; --color-course-3-bar: #48b3a4;
+  --color-course-4-bg: #2c422e; --color-course-4-fg: #d0eed2; --color-course-4-bar: #73af7a;
+  --color-course-5-bg: #3d3e22; --color-course-5-fg: #e5e8c2; --color-course-5-bar: #a1a458;
+  --color-course-6-bg: #4a3820; --color-course-6-fg: #f9e1c0; --color-course-6-bar: #c39553;
+  --color-course-7-bg: #50342a; --color-course-7-fg: #ffdacc; --color-course-7-bar: #d4886f;
+  --color-course-8-bg: #503239; --color-course-8-fg: #ffd7e1; --color-course-8-bar: #d38498;
+  --color-course-9-bg: #493348; --color-course-9-fg: #f7daf6; --color-course-9-bar: #c088bf;
+  --color-course-10-bg: #3c3852; --color-course-10-fg: #e4dfff; --color-course-10-bar: #9e93d8;
 
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
-  --shadow-md: 0 3px 8px rgb(0 0 0 / 0.4), 0 3px 1px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 8px 28px rgb(0 0 0 / 0.55), 0 1px 3px rgb(0 0 0 / 0.3);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-md: 0 3px 8px rgb(0 0 0 / 0.3), 0 3px 1px rgb(0 0 0 / 0.08);
+  --shadow-lg: 0 8px 28px rgb(0 0 0 / 0.4), 0 1px 3px rgb(0 0 0 / 0.25);
 }
 
 :root {

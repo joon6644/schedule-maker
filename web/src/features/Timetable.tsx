@@ -7,6 +7,12 @@ import { courseColorVars } from '../lib/courseColors'
 
 const HOUR = 'var(--timetable-hour-height)'
 
+export interface PreviewItem {
+  course: CourseData
+  /** 팔레트 번호 (--color-course-N-*) */
+  color: number
+}
+
 /**
  * Apple Calendar 스타일 주간 시간표
  * 시간·요일마다 희미한 격자 + 강의 블록(연한 시스템 색 틴트)
@@ -17,6 +23,7 @@ export function Timetable({
   colors,
   excludedDays,
   avoid,
+  preview,
   pinned,
   onCourseClick,
 }: {
@@ -24,11 +31,13 @@ export function Timetable({
   colors: Map<string, number>
   excludedDays: Day[]
   avoid?: { days: Day[]; times: ExcludedTime[] }
+  /** 강의 검색에서 펼친 과목·분반 미리보기 (분반마다 색 번호) */
+  preview?: PreviewItem[]
   pinned: Set<string>
   onCourseClick?: (course: CourseData) => void
 }) {
   const { days, startHour, endHour } = useMemo(() => {
-    const slots = courses.flatMap((c) => c.slots)
+    const slots = [...courses, ...(preview ?? []).map((p) => p.course)].flatMap((c) => c.slots)
     const hasSat = slots.some((s) => s.day === '토')
     const minStart = Math.min(9 * 60, ...slots.map((s) => toMinutes(s.start)))
     const maxEnd = Math.max(18 * 60, ...slots.map((s) => toMinutes(s.end)))
@@ -37,9 +46,10 @@ export function Timetable({
       startHour: Math.floor(minStart / 60),
       endHour: Math.ceil(maxEnd / 60),
     }
-  }, [courses])
+  }, [courses, preview])
 
   const hours = Array.from({ length: endHour - startHour }, (_, i) => startHour + i)
+  const previewing = !!preview?.length
   const clampTime = (time: string) => Math.min(Math.max(toMinutes(time), startHour * 60), endHour * 60)
   const top = (time: string) => `calc(${(clampTime(time) - startHour * 60) / 60} * ${HOUR})`
   const height = (start: string, end: string) => `calc(${(clampTime(end) - clampTime(start)) / 60} * ${HOUR})`
@@ -100,6 +110,35 @@ export function Timetable({
                 />
               ))}
 
+            {/* 미리보기 (강의 블록 위에 겹쳐서, 클릭은 통과) */}
+            {preview?.flatMap(({ course, color: colorNo }) =>
+              course.slots
+                .filter((s) => s.day === day)
+                .map((s) => {
+                  // 분반마다 다른 색 → 월·수처럼 나뉜 블록도 같은 분반끼리 같은 색 (검색 목록의 점과 같은 색)
+                  const color = courseColorVars(colorNo)
+                  return (
+                    <div
+                      key={`preview-${course.id}-${s.start}`}
+                      className="animate-fade-in pointer-events-none absolute inset-x-[2px] z-10 overflow-hidden rounded-[2px] px-1.5 pt-1 shadow-md ring-1 ring-inset sm:px-2 sm:pt-1.5"
+                      // 일반 강의 블록과 같은 모양 + 얇은 실선 테두리 (불투명 면: 아래 글자가 비치지 않게)
+                      style={{
+                        top: `calc(${top(s.start)} + 1px)`,
+                        height: `calc(${height(s.start, s.end)} - 2px)`,
+                        background: color.bg,
+                        color: color.fg,
+                        ['--tw-ring-color' as string]: color.bar,
+                      }}
+                    >
+                      <span className="block text-[11px] leading-[1.2] font-semibold break-keep [overflow-wrap:anywhere] sm:text-[12px]">{course.name}</span>
+                      <span className="block truncate text-[10px] leading-[1.2] opacity-75 sm:text-[11px]">
+                        {[s.room, course.professor].filter(Boolean).join(' · ')}
+                      </span>
+                    </div>
+                  )
+                }),
+            )}
+
             {/* 강의 블록 */}
             {courses.flatMap((course) =>
               course.slots
@@ -121,6 +160,9 @@ export function Timetable({
                       className={cx(
                         // 각진 블록: 시간표다운 정돈된 인상
                         'animate-fade-in absolute inset-x-[2px] overflow-hidden rounded-[2px] text-left transition hover:brightness-[0.97] active:scale-[0.98]',
+                        // 미리보기 중에는 원래 시간표를 희미하게
+                        // (opacity 대신 filter: 페이드인 애니메이션의 opacity 에 덮이지 않도록)
+                        previewing && '[filter:opacity(0.3)_saturate(0.6)]',
                         isPinned && 'ring-2 ring-inset',
                       )}
                       style={{

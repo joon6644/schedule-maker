@@ -1,104 +1,68 @@
 import {
-  closestCenter,
   DndContext,
   DragOverlay,
   KeyboardSensor,
   MouseSensor,
+  pointerWithin,
   TouchSensor,
+  useDraggable,
   useDroppable,
   useSensor,
   useSensors,
   type DragEndEvent,
-  type DragOverEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
-import { AlertTriangle, BookOpen, GripVertical, Minus } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
-import { Button, cx, EmptyState } from '../components/ui'
-import { matchesFilter } from '../engine/course'
+import { AlertTriangle, BookOpen, Check, ChevronDown, GripVertical } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Button, cx, EmptyState, RemoveButton, Segmented } from '../components/ui'
+import { matchesFilter, timeSummary } from '../engine/course'
 import type { CourseData, CourseFilter } from '../engine/types'
 import { useConfig, useStore, type ListType } from '../lib/store'
-import { Dot } from './SearchPanel'
-
-type Lists = Record<ListType, CourseFilter[]>
 
 const LISTS: { type: ListType; title: string; hint: string }[] = [
-  { type: 'required', title: '필수 강의', hint: '모든 시간표에 반드시 포함돼요.' },
-  { type: 'desired', title: '희망 강의', hint: '학점 범위 안에서 가능한 만큼 조합해요.' },
+  { type: 'required', title: '필수 과목', hint: '모든 시간표에 꼭 넣어요.' },
+  { type: 'desired', title: '희망 과목', hint: '학점 범위 안에서 가능한 만큼 넣어요.' },
 ]
 
-/** 두 목록을 오가도 변하지 않는 항목 id */
-const idOf = (f: CourseFilter) => `${f.courseId ?? ''}|${f.name ?? ''}|${f.professor ?? ''}`
+type Scope = 'any' | 'professor' | 'section'
 
+const idOf = (f: CourseFilter) => `${f.courseId ?? ''}|${f.name ?? ''}|${f.professor ?? ''}`
+const labelOf = (f: CourseFilter) => f.name || `강의번호 ${f.courseId}`
+const scopeOf = (f: CourseFilter): Scope => (f.courseId ? 'section' : f.professor ? 'professor' : 'any')
+/** 칸 안의 순서는 의미가 없으므로 가나다순으로 */
+const byName = (a: CourseFilter, b: CourseFilter) => labelOf(a).localeCompare(labelOf(b), 'ko')
+
+/**
+ * 담은 강의 — 필수 / 희망 두 칸
+ * - 칸 사이는 끌어서 이동 (칸 안의 순서는 가나다 자동)
+ * - 강의를 누르면 분반 지정 (상관없이 / 교수님 / 특정 분반)
+ */
 export function BasketPanel({ courses, onBrowse }: { courses: CourseData[]; onBrowse: () => void }) {
   const { dispatch } = useStore()
   const config = useConfig()
-  // 끄는 동안은 로컬 상태로만 움직이고, 놓을 때 한 번만 반영 (재계산이 계속 일어나지 않도록)
-  const [lists, setLists] = useState<Lists>({ required: config.required, desired: config.desired })
-  const [activeId, setActiveId] = useState<string | null>(null)
-  useEffect(() => {
-    if (!activeId) setLists({ required: config.required, desired: config.desired })
-  }, [config.required, config.desired, activeId])
+  const [dragging, setDragging] = useState<{ id: string; from: ListType } | null>(null)
 
   const sensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
     // 모바일: 길게 눌러서 끌기 (짧게 쓸어 넘기면 스크롤)
     useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    useSensor(KeyboardSensor),
   )
 
-  const containerOf = (id: string): ListType | null =>
-    id === 'required' || id === 'desired'
-      ? id
-      : lists.required.some((f) => idOf(f) === id)
-        ? 'required'
-        : lists.desired.some((f) => idOf(f) === id)
-          ? 'desired'
-          : null
-
-  const onDragStart = ({ active }: DragStartEvent) => setActiveId(String(active.id))
-
-  /** 다른 목록 위로 끌고 가면 그 자리로 옮겨 보여줌 */
-  const onDragOver = ({ active, over }: DragOverEvent) => {
-    if (!over) return
-    const from = containerOf(String(active.id))
-    const to = containerOf(String(over.id))
-    if (!from || !to || from === to) return
-    setLists((prev) => {
-      const item = prev[from].find((f) => idOf(f) === active.id)
-      if (!item) return prev
-      const overIndex = prev[to].findIndex((f) => idOf(f) === over.id)
-      const at = overIndex < 0 ? prev[to].length : overIndex
-      return {
-        ...prev,
-        [from]: prev[from].filter((f) => idOf(f) !== active.id),
-        [to]: [...prev[to].slice(0, at), item, ...prev[to].slice(at)],
-      }
-    })
-  }
-
+  const onDragStart = ({ active }: DragStartEvent) => setDragging(active.data.current as { id: string; from: ListType })
   const onDragEnd = ({ active, over }: DragEndEvent) => {
-    setActiveId(null)
-    let next = lists
-    const list = containerOf(String(active.id))
-    if (over && list && containerOf(String(over.id)) === list) {
-      const from = lists[list].findIndex((f) => idOf(f) === active.id)
-      const to = lists[list].findIndex((f) => idOf(f) === over.id)
-      if (from >= 0 && to >= 0 && from !== to) next = { ...lists, [list]: arrayMove(lists[list], from, to) }
-    }
-    if (next.required !== config.required || next.desired !== config.desired) {
-      dispatch({ type: 'setLists', required: next.required, desired: next.desired })
-    }
+    setDragging(null)
+    const from = (active.data.current as { from: ListType }).from
+    const to = over?.id as ListType | undefined
+    if (!to || to === from) return
+    const index = config[from].findIndex((f) => idOf(f) === active.id)
+    if (index >= 0) dispatch({ type: 'moveFilter', list: from, index })
   }
 
-  const activeFilter = activeId ? [...lists.required, ...lists.desired].find((f) => idOf(f) === activeId) : null
-
-  // 화면 낭독기 안내 (기본값은 영어)
-  const nameOf = (id: string | number) => [...lists.required, ...lists.desired].find((f) => idOf(f) === id)?.name ?? '강의'
+  const draggingFilter = dragging ? config[dragging.from].find((f) => idOf(f) === dragging.id) : null
+  const nameOf = (id: string | number) => [...config.required, ...config.desired].find((f) => idOf(f) === id)?.name ?? '강의'
   const accessibility = {
-    screenReaderInstructions: { draggable: '스페이스바로 들어 올리고, 방향키로 옮긴 뒤 스페이스바로 놓으세요. Esc 로 취소합니다.' },
+    screenReaderInstructions: { draggable: '스페이스바로 들어 올리고, 방향키로 다른 칸으로 옮긴 뒤 스페이스바로 놓으세요.' },
     announcements: {
       onDragStart: ({ active }: { active: { id: string | number } }) => `${nameOf(active.id)} 들어 올림`,
       onDragOver: ({ active }: { active: { id: string | number } }) => `${nameOf(active.id)} 옮기는 중`,
@@ -112,142 +76,201 @@ export function BasketPanel({ courses, onBrowse }: { courses: CourseData[]; onBr
       <EmptyState
         icon={<BookOpen size={36} strokeWidth={1.5} />}
         title="담은 강의가 없어요"
-        description="강의 검색에서 듣고 싶은 강의를 필수 또는 희망으로 담아 보세요."
+        description="강의 검색에서 + 를 눌러 듣고 싶은 강의를 담아 보세요."
         action={<Button onClick={onBrowse}>강의 검색</Button>}
       />
     )
   }
 
   return (
-    <DndContext
-      accessibility={accessibility}
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragStart={onDragStart}
-      onDragOver={onDragOver}
-      onDragEnd={onDragEnd}
-      onDragCancel={() => setActiveId(null)}
-    >
+    <DndContext accessibility={accessibility} sensors={sensors} collisionDetection={pointerWithin} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setDragging(null)}>
       <div className="space-y-6 px-4 pt-1 pb-6">
         {LISTS.map(({ type, title, hint }) => (
-          <FilterList key={type} type={type} title={title} hint={hint} filters={lists[type]} courses={courses} activeId={activeId} />
+          <FilterList key={type} type={type} title={title} hint={hint} filters={config[type]} courses={courses} dragging={dragging} />
         ))}
-        <p className="px-4 text-[12px] text-fg-subtle">끌어서 순서를 바꾸거나 필수 ↔ 희망으로 옮길 수 있어요.</p>
+        <p className="px-4 text-[12px] text-fg-subtle">끌어서 필수 ↔ 희망으로 옮기고, 눌러서 분반을 정해요.</p>
       </div>
-      <DragOverlay>{activeFilter && <FilterRow filter={activeFilter} courses={courses} overlay />}</DragOverlay>
+      <DragOverlay dropAnimation={null}>
+        {draggingFilter && (
+          <div className="flex items-center gap-2 rounded-md bg-surface-raised py-2.5 pr-3 pl-4 shadow-lg">
+            <span className="flex-1 text-[15px] font-medium">{labelOf(draggingFilter)}</span>
+            <GripVertical size={16} className="text-fg-subtle" />
+          </div>
+        )}
+      </DragOverlay>
     </DndContext>
   )
 }
 
-/** inset grouped 리스트 — 구분선 없이 여백으로 행을 나눔. 빈 목록에도 놓을 수 있음 */
-function FilterList({ type, title, hint, filters, courses, activeId }: {
+function FilterList({ type, title, hint, filters, courses, dragging }: {
   type: ListType
   title: string
   hint: string
   filters: CourseFilter[]
   courses: CourseData[]
-  activeId: string | null
+  dragging: { from: ListType } | null
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: type })
+  const dropTarget = dragging && dragging.from !== type
+  const sorted = useMemo(() => [...filters].sort(byName), [filters])
   return (
     <section>
-      <h3 className="flex items-center gap-1.5 px-4 pb-1.5 text-[13px] font-medium text-fg-muted">
-        <Dot tone={type} />
+      <h3 className="flex items-baseline gap-1.5 px-4 pb-1.5 text-[13px] font-medium text-fg-muted">
         {title}
         <span className="tabular-nums">{filters.length}</span>
       </h3>
-      <div ref={setNodeRef} className={cx('rounded-lg bg-surface-raised p-1.5 transition-shadow', isOver && activeId && 'ring-2 ring-accent-soft')}>
-        <SortableContext items={filters.map(idOf)} strategy={verticalListSortingStrategy}>
-          {filters.length === 0 ? (
-            <p className="px-3 py-3 text-[14px] text-fg-subtle">{activeId ? '여기에 놓기' : '비어 있음'}</p>
-          ) : (
-            <ul>
-              {filters.map((f) => (
-                <SortableRow key={idOf(f)} filter={f} list={type} courses={courses} />
-              ))}
-            </ul>
-          )}
-        </SortableContext>
+      <div
+        ref={setNodeRef}
+        className={cx(
+          'rounded-lg bg-surface-raised p-1 transition',
+          dropTarget && 'ring-2 ring-accent-soft',
+          dropTarget && isOver && 'ring-accent',
+        )}
+      >
+        {sorted.length === 0 ? (
+          <p className="px-3 py-3 text-[14px] text-fg-subtle">{dropTarget ? '여기에 놓기' : '비어 있음'}</p>
+        ) : (
+          <ul>
+            {sorted.map((f, i) => {
+              // 분반을 바꿔도 같은 행으로 남도록 과목명 기준 key (편집기가 닫히지 않게). 같은 과목이 둘이면 순번
+              const name = labelOf(f)
+              const nth = sorted.slice(0, i).filter((x) => labelOf(x) === name).length
+              return <FilterRow key={`${name}#${nth}`} filter={f} list={type} courses={courses} />
+            })}
+          </ul>
+        )}
       </div>
       <p className="px-4 pt-1.5 text-[12px] text-fg-muted">{hint}</p>
     </section>
   )
 }
 
-function SortableRow({ filter, list, courses }: { filter: CourseFilter; list: ListType; courses: CourseData[] }) {
+function FilterRow({ filter, list, courses }: { filter: CourseFilter; list: ListType; courses: CourseData[] }) {
   const { dispatch } = useStore()
   const config = useConfig()
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: idOf(filter) })
-  const remove = () => {
-    const index = config[list].findIndex((f) => idOf(f) === idOf(filter))
-    if (index >= 0) dispatch({ type: 'removeFilter', list, index })
-  }
+  const [open, setOpen] = useState(false)
+  const id = idOf(filter)
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id, data: { id, from: list } })
+
+  const matched = useMemo(() => courses.filter((c) => matchesFilter(filter, c)), [filter, courses])
+  const credits = [...new Set(matched.map((c) => c.credits))].sort()
+  const index = config[list].findIndex((f) => idOf(f) === id)
+  const remove = () => index >= 0 && dispatch({ type: 'removeFilter', list, index })
+  const update = (next: CourseFilter) => index >= 0 && dispatch({ type: 'updateFilter', list, index, filter: next })
+
+  const summary = filter.courseId
+    ? (() => {
+        const c = matched[0]
+        return c ? `${timeSummary(c).split(',')[0]} 분반` : '분반 지정'
+      })()
+    : filter.professor
+      ? `${filter.professor} 교수님 분반 ${matched.length}개 중`
+      : matched.length > 1
+        ? `분반 ${matched.length}개 중 자동`
+        : '분반 1개'
+
   return (
-    <li
-      ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={cx('touch-manipulation', isDragging && 'opacity-30')}
-      {...attributes}
-      {...listeners}
-    >
-      <FilterRow filter={filter} courses={courses} onRemove={remove} />
+    <li ref={setNodeRef} className={cx('rounded-md transition-colors', open ? 'bg-surface-sunken/60' : 'hover:bg-surface-hover', isDragging && 'opacity-40')}>
+      <div className="flex items-center gap-1 py-1.5 pr-1 pl-3">
+        {/* 행을 누르면 분반 편집, 끌면 다른 칸으로 이동 */}
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          className="flex min-w-0 flex-1 cursor-grab items-center gap-2 py-0.5 text-left active:cursor-grabbing"
+          {...attributes}
+          {...listeners}
+        >
+          <span className="min-w-0 flex-1">
+            <span className="block text-[15px] leading-snug font-medium tracking-tight break-keep [overflow-wrap:anywhere]">{labelOf(filter)}</span>
+            {matched.length === 0 ? (
+              <span className="mt-0.5 flex items-center gap-1 text-[12px] text-warning">
+                <AlertTriangle size={12} /> 이번 학기에 맞는 강의가 없어요
+              </span>
+            ) : (
+              <span className="mt-0.5 block truncate text-[13px] text-fg-muted">
+                {summary} · {credits.join('/')}학점
+              </span>
+            )}
+          </span>
+          <ChevronDown size={15} className={cx('shrink-0 text-fg-subtle transition-transform', open && 'rotate-180')} />
+        </button>
+        <RemoveButton label="빼기" onClick={remove} />
+      </div>
+      {open && <ScopeEditor filter={filter} courses={courses} onChange={update} />}
     </li>
   )
 }
 
-function FilterRow({ filter, courses, onRemove, overlay }: {
-  filter: CourseFilter
-  courses: CourseData[]
-  onRemove?: () => void
-  overlay?: boolean
-}) {
-  const matched = useMemo(() => courses.filter((c) => matchesFilter(filter, c)), [filter, courses])
-  const credits = [...new Set(matched.map((c) => c.credits))].sort()
+/** 분반 지정: 상관없이 / 교수님 / 특정 분반 */
+function ScopeEditor({ filter, courses, onChange }: { filter: CourseFilter; courses: CourseData[]; onChange: (f: CourseFilter) => void }) {
+  const name = filter.name ?? courses.find((c) => c.id === filter.courseId)?.name ?? ''
+  const sections = useMemo(
+    () => courses.filter((c) => c.name === name).sort((a, b) => a.professor.localeCompare(b.professor, 'ko') || timeSummary(a).localeCompare(timeSummary(b))),
+    [courses, name],
+  )
+  const professors = [...new Set(sections.map((c) => c.professor).filter(Boolean))]
+  const scope = scopeOf(filter)
+
+  if (sections.length <= 1) return <p className="px-3 pb-3 text-[12px] text-fg-muted">이 과목은 분반이 하나예요.</p>
+
+  const setScope = (s: Scope) => {
+    if (s === 'any') onChange({ name })
+    if (s === 'professor') onChange({ name, professor: filter.professor ?? sections.find((c) => c.id === filter.courseId)?.professor ?? professors[0] })
+    if (s === 'section') onChange({ name, courseId: filter.courseId ?? sections.find((c) => !filter.professor || c.professor === filter.professor)?.id })
+  }
+
   return (
-    <div
-      className={cx(
-        'group flex cursor-grab items-center gap-3 rounded-md px-2.5 py-2 transition-colors active:cursor-grabbing',
-        overlay ? 'bg-surface-raised shadow-lg' : 'hover:bg-surface-hover',
+    <div className="animate-fade-in space-y-2 px-3 pb-3">
+      <Segmented
+        size="sm"
+        value={scope}
+        onChange={setScope}
+        options={[
+          { value: 'any', label: '상관없이' },
+          ...(professors.length > 1 ? [{ value: 'professor' as const, label: '교수님 지정' }] : []),
+          { value: 'section', label: '분반 지정' },
+        ]}
+      />
+      {scope === 'professor' && (
+        <div className="flex flex-wrap gap-1.5">
+          {professors.map((p) => {
+            const on = filter.professor === p
+            return (
+              <button
+                key={p}
+                type="button"
+                onClick={() => onChange({ name, professor: p })}
+                className={cx('h-7 rounded-full px-3 text-[13px] transition', on ? 'bg-accent text-fg-on-accent' : 'bg-surface-raised text-fg hover:brightness-95')}
+              >
+                {p} <span className={on ? 'opacity-80' : 'text-fg-subtle'}>{sections.filter((c) => c.professor === p).length}</span>
+              </button>
+            )
+          })}
+        </div>
       )}
-    >
-      {/* iOS 편집 모드의 빨간 빼기 버튼 (누를 때 끌기가 시작되지 않도록) */}
-      <button
-        type="button"
-        aria-label="빼기"
-        title="빼기"
-        onClick={onRemove}
-        onPointerDown={(e) => e.stopPropagation()}
-        onMouseDown={(e) => e.stopPropagation()}
-        onTouchStart={(e) => e.stopPropagation()}
-        className="flex size-[22px] shrink-0 items-center justify-center rounded-full bg-required text-fg-on-accent transition active:scale-90"
-      >
-        <Minus size={14} strokeWidth={3} />
-      </button>
-      <div className="min-w-0 flex-1">
-        <p className="text-[15px] leading-snug font-medium tracking-tight break-keep [overflow-wrap:anywhere]">
-          {filter.name || `강의번호 ${filter.courseId}`}
-          {filter.courseId && <span className="ml-1.5 text-[12px] font-normal text-fg-subtle">#{filter.courseId}</span>}
-        </p>
-        {matched.length === 0 ? (
-          <p className="mt-0.5 flex items-center gap-1 text-[12px] text-warning">
-            <AlertTriangle size={12} /> 이번 학기에 맞는 강의가 없어요
-          </p>
-        ) : (
-          <p className="mt-0.5 truncate text-[13px] text-fg-muted">
-            {filter.courseId
-              ? '이 분반만'
-              : filter.professor
-                ? `${filter.professor} 교수님 분반 ${matched.length}개`
-                : matched.length > 1
-                  ? `분반 ${matched.length}개 중 자동 선택`
-                  : '분반 1개'}
-            {' · '}
-            {credits.join('/')}학점
-          </p>
-        )}
-      </div>
-      {/* 끌 수 있다는 표시 */}
-      <GripVertical size={16} className="shrink-0 text-fg-subtle opacity-60 group-hover:opacity-100" aria-hidden />
+      {scope === 'section' && (
+        <ul className="overflow-hidden rounded-md bg-surface-raised">
+          {sections.map((c) => {
+            const on = filter.courseId === c.id
+            return (
+              <li key={c.id}>
+                <button
+                  type="button"
+                  onClick={() => onChange({ name, courseId: c.id })}
+                  className={cx('flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] transition-colors', on ? 'text-accent-fg' : 'hover:bg-surface-hover')}
+                >
+                  <span className="min-w-0 flex-1 truncate tabular-nums">{timeSummary(c)}</span>
+                  <span className="shrink-0 text-fg-muted">{c.professor}</span>
+                  {/* 같은 시간·교수의 분반이 여럿일 수 있어 번호로 구분 */}
+                  <span className="shrink-0 text-[12px] text-fg-subtle tabular-nums">#{c.id}</span>
+                  <Check size={14} strokeWidth={2.6} className={cx('shrink-0', on ? 'opacity-100' : 'opacity-0')} />
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
     </div>
   )
 }

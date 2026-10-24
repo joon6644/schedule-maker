@@ -6,6 +6,7 @@ import { BasketPanel } from './features/BasketPanel'
 import { ConstraintsPanel } from './features/ConstraintsPanel'
 import { ResultSummary } from './features/ResultSummary'
 import { ResultView } from './features/ResultView'
+import type { PreviewItem } from './features/Timetable'
 import { SearchPanel } from './features/SearchPanel'
 import { useCourses, useGeneration, useTerms, type Term } from './lib/data'
 import { useConfig, useStore, type ThemePref } from './lib/store'
@@ -72,13 +73,16 @@ export default function App() {
       undoingRef.current = false
       const lostView = !undo && !!reconciled?.lostView
       const dropped = reconciled?.droppedPins.length ?? 0
+      const what = describeChange(prev.config, generation.config)
+      const isListChange = /담음|뺌|옮김/.test(what)
       if (undo || count !== prev.count || lostView || dropped) {
         const message = undo
           ? '되돌렸어요'
           : [
               count === 0
-                ? `${describeChange(prev.config, generation.config)} → 조합 없음`
-                : `조합 ${prev.count.toLocaleString()} → ${count.toLocaleString()}개`,
+                ? `${what} → 조합 없음`
+                : // 담기·빼기·옮기기는 무엇이 바뀌었는지 앞에 붙임
+                  `${isListChange ? `${what} · ` : ''}조합 ${prev.count.toLocaleString()} → ${count.toLocaleString()}개`,
               lostView && count > 0 && '보던 시간표 바뀜',
               dropped > 0 && `고정 ${dropped}개 풀림`,
             ]
@@ -104,11 +108,17 @@ export default function App() {
   }, [generation, courses, dispatch, notify])
 
   const shownOutput = generation.status === 'done' ? generation.output : generation.status === 'running' ? generation.previous : null
-  const currentCredits = useMemo(() => {
+  const currentSchedule = useMemo(() => {
     if (!shownOutput) return null
-    const s = viewer.key ? shownOutput.schedules.find((x) => scheduleKey(x) === viewer.key) : shownOutput.schedules[0]
-    return s?.totalCredits ?? null
+    return (viewer.key ? shownOutput.schedules.find((x) => scheduleKey(x) === viewer.key) : shownOutput.schedules[0]) ?? null
   }, [shownOutput, viewer.key])
+  const currentCredits = currentSchedule?.totalCredits ?? null
+
+  /** 강의 검색에서 펼친 과목·분반을 시간표에 흐릿하게 미리보기 */
+  const [preview, setPreview] = useState<PreviewItem[] | null>(null)
+  useEffect(() => {
+    if (tab !== 'search') setPreview(null)
+  }, [tab])
 
   const basketCount = config.required.length + config.desired.length
   const resultCount = generation.status === 'done' ? generation.output.schedules.length : null
@@ -125,7 +135,7 @@ export default function App() {
     !courses ? (
       <Loading />
     ) : t === 'search' ? (
-      <SearchPanel courses={courses} />
+      <SearchPanel courses={courses} onPreview={setPreview} />
     ) : t === 'basket' ? (
       <div className="h-full overflow-y-auto">
         <BasketPanel courses={courses} onBrowse={() => setTab('search')} />
@@ -144,6 +154,7 @@ export default function App() {
       viewer={viewer}
       onViewerChange={setViewer}
       notify={notify}
+      preview={isDesktop ? preview : null}
     />
   )
 
@@ -154,7 +165,7 @@ export default function App() {
       <ThemeButton />
     </>
   )
-  const errorBanner = error && <p className="mx-4 mt-2 rounded-md bg-required-soft px-4 py-2.5 text-[13px] text-danger lg:mx-10">{error}</p>
+  const errorBanner = error && <p className="mx-4 mt-2 rounded-md bg-danger-soft px-4 py-2.5 text-[13px] text-danger lg:mx-10">{error}</p>
 
   if (isDesktop) {
     /* 데스크톱 (macOS 앱 구조): 회색 사이드바 + 흰 메인, 구분선 없이 배경 대비로만 나눔 */
@@ -171,9 +182,8 @@ export default function App() {
           <div className="px-4 pb-3">
             <Segmented value={sidebarTab} onChange={setTab} options={sidebarTabs} />
           </div>
+          {/* 데스크톱은 결과가 바로 옆에 보이므로 요약 바 없이 (정보 중복) */}
           <div className="min-h-0 flex-1">{panel(sidebarTab)}</div>
-          {/* 설정을 바꾸는 곳 바로 아래에서 재계산 결과를 보여줌 */}
-          <ResultSummary generation={generation} credits={currentCredits} variant="sidebar" />
         </aside>
         <div className="flex min-w-0 flex-1 flex-col">
           <header className="material sticky top-0 z-30 flex shrink-0 items-center justify-end gap-1.5 px-8" style={{ height: 'var(--layout-header-height)' }}>
@@ -247,7 +257,7 @@ function NavItem({ active, onClick, icon, label, badge }: { active: boolean; onC
       {icon}
       {label}
       {badge !== undefined && (
-        <span className="absolute top-1.5 left-1/2 ml-2.5 rounded-full bg-required px-1.5 text-[10px] leading-4 font-semibold text-fg-on-accent tabular-nums">
+        <span className="absolute top-1.5 left-1/2 ml-2.5 rounded-full bg-accent px-1.5 text-[10px] leading-4 font-semibold text-fg-on-accent tabular-nums">
           {badge > 999 ? '999+' : badge}
         </span>
       )}

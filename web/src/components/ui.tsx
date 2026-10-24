@@ -4,7 +4,7 @@
  *
  * Apple 스타일 원칙: 테두리·구분선 없음, 캡슐 버튼, 채워진(fill) 입력 컨트롤, 그룹은 배경 대비로만 구분
  */
-import { Minus, Plus } from 'lucide-react'
+import { Minus, Plus, X } from 'lucide-react'
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 
 export function cx(...classes: (string | false | null | undefined)[]) {
@@ -14,11 +14,17 @@ export function cx(...classes: (string | false | null | undefined)[]) {
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
 type ButtonSize = 'sm' | 'md'
 
+/**
+ * 버튼 위계 (Material 3 / Apple HIG): 한 영역에 primary 는 하나만
+ * - primary: 가장 중요한 동작 (강조색 채움)
+ * - secondary: 그 밖의 동작 (중립 회색 채움)
+ * - ghost: 보조·취소·링크성 동작 (글자만)
+ */
 const buttonVariants: Record<ButtonVariant, string> = {
   primary: 'bg-accent text-fg-on-accent hover:bg-accent-hover',
-  secondary: 'bg-accent-soft text-accent-fg hover:brightness-95', // iOS "tinted"
-  ghost: 'text-accent-fg hover:bg-surface-hover', // iOS "plain"
-  danger: 'text-danger hover:bg-required-soft',
+  secondary: 'bg-surface-sunken text-fg hover:brightness-95',
+  ghost: 'text-accent-fg hover:bg-surface-hover',
+  danger: 'text-danger hover:bg-danger-soft',
 }
 const buttonSizes: Record<ButtonSize, string> = {
   sm: 'h-7 px-3 text-[13px] gap-1',
@@ -66,12 +72,11 @@ export function IconButton({
   )
 }
 
-type BadgeTone = 'neutral' | 'accent' | 'required' | 'desired' | 'warning'
+/** 배지는 세 가지만: 중립(기본) · 강조(필수처럼 중요한 것 하나) · 경고 */
+type BadgeTone = 'neutral' | 'accent' | 'warning'
 const badgeTones: Record<BadgeTone, string> = {
   neutral: 'bg-surface-sunken text-fg-muted',
   accent: 'bg-accent-soft text-accent-fg',
-  required: 'bg-required-soft text-required',
-  desired: 'bg-desired-soft text-desired',
   warning: 'bg-warning-soft text-warning',
 }
 
@@ -177,6 +182,38 @@ export function Toast({ toast, onClose, className }: { toast: ToastData | null; 
         </button>
       )}
     </div>
+  )
+}
+
+/** 목록 행의 삭제: 평소엔 회색, 가리키면 빨강 (빨간 동그라미를 늘어놓지 않음) */
+export function RemoveButton({ label = '삭제', onClick }: { label?: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      onPointerDown={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
+      className="flex size-7 shrink-0 items-center justify-center rounded-full text-fg-subtle transition hover:bg-danger-soft hover:text-danger active:scale-90"
+    >
+      <X size={15} strokeWidth={2.2} />
+    </button>
+  )
+}
+
+/** 목록 끝의 '+ 추가' 행 (강조색 글자) */
+export function AddRow({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex min-h-11 w-full items-center gap-2 px-4 text-left text-[15px] font-medium text-accent-fg transition hover:bg-surface-hover active:opacity-60"
+    >
+      <Plus size={17} strokeWidth={2.2} />
+      {label}
+    </button>
   )
 }
 

@@ -1,5 +1,5 @@
 /** 강의명 → 시간표 팔레트 색 (tokens.css 의 --color-course-N-*) */
-const PALETTE_SIZE = 8
+const PALETTE_SIZE = 10
 
 export function colorIndex(name: string, assigned?: Map<string, number>): number {
   if (assigned?.has(name)) return assigned.get(name)!
