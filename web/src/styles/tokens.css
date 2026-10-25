@@ -1,5 +1,5 @@
 /*
- * Design Tokens — Figma 변수와 1:1로 대응하는 단일 출처 (Single Source of Truth)
+ * Design Tokens — 색·반경·그림자의 단일 출처 (Single Source of Truth)
  *
  * 디자인 원칙
  *   1. 60·30·10 — 중립(회색) 60%, 보조(면·글자 위계) 30%, 강조색 10%. 강조색은 하나(accent)만.
@@ -9,13 +9,9 @@
  *      (Radix Colors / Tailwind v4 와 같은 방식). 배경 L=0.955 C=0.03, 글자 L=0.42 C=0.075 → 대비 7:1 이상
  *   3. 배경 위계 — bg(메인) → surface(사이드바·그룹 배경) → surface-raised(셀). 구분선 대신 배경 대비
  *
- * 이름 규칙:  CSS  --color-surface-raised   ↔   Figma  color/surface/raised
- *             CSS  --color-surface          ↔   Figma  color/surface/default (하위 토큰이 있는 경우)
- *             CSS  --radius-md              ↔   Figma  radius/md
- * Figma 컬렉션: "Color · Light", "Color · Dark" (Starter 플랜: 모드 1개 제한), "Radius" + 이펙트 스타일 shadow/*
+ * 이름 규칙: CSS --color-surface-raised ↔ Tailwind bg-surface-raised
  *
  * 컴포넌트에서는 색상 값을 직접 쓰지 말고 반드시 이 토큰(또는 Tailwind 매핑)을 사용할 것.
- * 자세한 협업 방식은 docs/figma-workflow.md 참고.
  */
 
 @theme static {

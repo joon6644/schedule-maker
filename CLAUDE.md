@@ -10,17 +10,14 @@
 - 웹 엔진 `web/src/engine/generator.ts`는 Python `schedule_maker/services/scheduler.py`의 이식판이다. 한쪽을 바꾸면 다른 쪽도 같이 바꾼다.
 - `web/src/engine/generator.test.ts`에 Python 결과와 맞춰 둔 기대값(8099, 8984, 4150, 626)이 있다. 알고리즘을 바꾸면 Python 쪽에서 값을 다시 확인한다.
 
-## 디자인 시스템 규칙 (Figma 연동)
+## 디자인 시스템 규칙
 - 색·반경·그림자는 `web/src/styles/tokens.css`의 토큰만 사용한다. hex 값을 컴포넌트에 직접 쓰지 않는다. Tailwind 기본 팔레트는 꺼져 있다.
 - 색 원칙 60·30·10: 강조색은 `accent` 하나뿐. 필수/희망 같은 역할에 색을 따로 주지 않는다(필수 = accent, 나머지 = 중립). 빨강(`danger`)은 오류·삭제 확인에만.
 - 강의 색 10개는 OKLCH 같은 밝기·채도에 hue 만 36° 간격 (대비 7:1 이상). 새 색이 필요하면 같은 방식으로 계산한다.
 - 버튼 위계: 한 영역에 primary 하나, 나머지는 secondary(회색 채움)·ghost(글자). 배지는 neutral·accent·warning 세 가지만. 목록 삭제는 `RemoveButton`, 추가는 `AddRow`.
-- Figma 변수 `color/surface/raised` ↔ CSS `--color-surface-raised` ↔ Tailwind `bg-surface-raised`.
-- 기본 컴포넌트는 `web/src/components/ui.tsx`에 있고 Figma 컴포넌트와 이름·variant가 같다. 새 UI는 먼저 여기 있는 컴포넌트를 조합한다.
+- CSS `--color-surface-raised` ↔ Tailwind `bg-surface-raised`.
+- 기본 컴포넌트는 `web/src/components/ui.tsx`에 있다. 새 UI는 먼저 여기 있는 컴포넌트를 조합한다.
 - 아이콘은 `lucide-react`.
-- Figma 링크를 받으면: `get_variable_defs`로 토큰 차이를 먼저 반영 → `get_design_context`로 구조 확인 → 기존 컴포넌트로 구현 → `get_screenshot`과 실제 화면 비교.
-- Figma 파일: fileKey `ocYp0Lpe3PB396q6nJhr6c` (Starter 플랜: 컬렉션당 모드 1개 → `Color · Light`/`Color · Dark` 분리, MCP 읽기 월 20회라 읽기 호출은 아껴 쓸 것)
-- 자세한 내용: `docs/figma-workflow.md`
 
 ## 명령
 - 웹: `cd web && npm run dev | npm test | npm run build`

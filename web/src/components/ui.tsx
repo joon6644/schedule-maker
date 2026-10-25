@@ -1,6 +1,5 @@
 /**
- * 기본 UI 컴포넌트 — Figma 컴포넌트와 같은 이름·속성(variant/size)을 사용
- * (Figma: Components 프레임의 Button, IconButton, Badge, Segmented, Section, Stepper)
+ * 기본 UI 컴포넌트 — 새 화면은 먼저 여기 있는 컴포넌트를 조합한다
  *
  * Apple 스타일 원칙: 테두리·구분선 없음, 캡슐 버튼, 채워진(fill) 입력 컨트롤, 그룹은 배경 대비로만 구분
  */
