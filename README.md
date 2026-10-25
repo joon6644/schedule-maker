@@ -1,10 +1,10 @@
-# Schedule Maker (명지대학교 시간표 생성기)
+# 시간표 생성기 (명지대학교)
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Qt for Python](https://img.shields.io/badge/Qt-PySide6-green.svg)](https://wiki.qt.io/Qt_for_Python)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Schedule Maker**는 명지대학교 학생들을 위한 지능형 시간표 생성 자동화 도구입니다. 
+**시간표 생성기**는 명지대학교 학생들을 위한 시간표 생성 자동화 도구입니다. (저장소·코드 이름은 `schedule-maker`)
 사용자가 원하는 필수/희망 강의와 제약 조건(공강 요일, 최소/최대 학점 등)을 입력하면, 백트래킹 알고리즘을 사용하여 가능한 모든 시간표 조합을 생성하고 시각화해줍니다.
 
 ## 🌐 웹 버전 (`web/`)

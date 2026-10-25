@@ -37,7 +37,7 @@ jobs:
       with:
         files: dist/ScheduleMaker_2026.exe
         body: |
-          ## Schedule Maker ${{ steps.tag_name.outputs.TAG }}
+          ## 시간표 생성기 ${{ steps.tag_name.outputs.TAG }}
           
           ### 다운로드
           - Windows 실행 파일: `ScheduleMaker_2026.exe`

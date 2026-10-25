@@ -46,7 +46,7 @@ class MainWindow(FluentWindow):
         self.splashScreen.finish()
         
     def initWindow(self):
-        self.setWindowTitle("Schedule Maker 2026")
+        self.setWindowTitle("시간표 생성기 · 명지대학교")
         self.resize(1200, 950)
         self.setMinimumWidth(1100)
         self.setMinimumHeight(800)

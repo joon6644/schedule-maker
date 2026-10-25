@@ -194,7 +194,7 @@ export default function App() {
           <div className="flex items-center gap-3 px-6 pt-5 pb-4">
             <Logo />
             <div className="min-w-0">
-              <h1 className="truncate text-[17px] leading-tight font-semibold tracking-tight">시간표 메이커</h1>
+              <h1 className="truncate text-[17px] leading-tight font-semibold tracking-tight">시간표 생성기</h1>
               <p className="text-[12px] leading-tight text-fg-muted">명지대학교{term && ` · ${term.label}`}</p>
             </div>
           </div>
@@ -221,7 +221,7 @@ export default function App() {
     <div className={cx('flex h-full flex-col', tab === 'result' ? 'bg-bg' : 'bg-surface')}>
       <header className="material sticky top-0 z-30 flex shrink-0 items-center gap-2.5 px-4" style={{ height: 'var(--layout-header-height)' }}>
         <Logo />
-        <h1 className="hidden text-[17px] font-semibold tracking-tight min-[420px]:block">시간표 메이커</h1>
+        <h1 className="hidden text-[17px] font-semibold tracking-tight min-[420px]:block">시간표 생성기</h1>
         {term && <span className="text-[12px] text-fg-muted">{term.label}</span>}
         <div className="ml-auto flex items-center gap-1">{controls}</div>
       </header>

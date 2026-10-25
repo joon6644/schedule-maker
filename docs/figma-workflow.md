@@ -17,7 +17,7 @@ Figma 원격 MCP 서버(`https://mcp.figma.com/mcp`)를 사용합니다. 아래 
 
 ## 디자인 파일
 
-- 파일: [시간표 메이커 (Figma)](https://www.figma.com/design/ocYp0Lpe3PB396q6nJhr6c) — fileKey `ocYp0Lpe3PB396q6nJhr6c`
+- 파일: [시간표 생성기 (Figma)](https://www.figma.com/design/ocYp0Lpe3PB396q6nJhr6c) — fileKey `ocYp0Lpe3PB396q6nJhr6c`
 - `Page 1`
   - `Components` 프레임 (node `9:2`): `CourseBlock` (`9:37`, color=1~8), `Badge` (`9:50`, tone), `Button` (`9:59`, variant)
   - `Desktop / 시간표` 프레임 (node `10:2`): 1440×900, 웹 앱 데스크톱 화면
