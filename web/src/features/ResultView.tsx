@@ -1,13 +1,15 @@
-import { AlertCircle, CalendarRange, ChevronLeft, ChevronRight, Loader2, Pin, Plus, Repeat2, Sparkles } from 'lucide-react'
-import { useEffect, useMemo } from 'react'
-import { Badge, Button, cx, EmptyState, IconButton } from '../components/ui'
+import { AlertCircle, Bookmark, CalendarRange, ChevronLeft, ChevronRight, Loader2, Pin, Plus, Repeat2, Sparkles } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Badge, Button, cx, EmptyState, IconButton, type ToastData } from '../components/ui'
 import { timeSummary } from '../engine/course'
-import type { CourseData, GenerationOutput, ScheduleResult } from '../engine/types'
+import type { CourseData, GenerationOutput, ScheduleConfig, ScheduleResult } from '../engine/types'
 import { assignColors, courseColorVars } from '../lib/courseColors'
 import type { GenerationState } from '../lib/data'
-import { useConfig, useStore } from '../lib/store'
+import { useConfig, useSaved, useStore, type SavedSchedule } from '../lib/store'
 import { ANY, filterByPins, matchesPins, scheduleKey, type Pins, type ViewerState } from '../lib/viewer'
 import { Timetable, type PreviewItem } from './Timetable'
+
+type Notify = (message: string, action?: ToastData['action']) => void
 
 interface ViewerProps {
   /** 강의 검색에서 고른 과목·분반 미리보기 */
@@ -15,16 +17,25 @@ interface ViewerProps {
   /** 보고 있는 시간표와 고정한 강의 (App 이 보관 → 재계산·탭 이동에도 유지) */
   viewer: ViewerState
   onViewerChange: (viewer: ViewerState) => void
-  notify: (message: string) => void
+  notify: Notify
 }
 
-export function ResultView({ generation, courses, onAddCourses, ...viewerProps }: ViewerProps & {
+export function ResultView({ generation, courses, onAddCourses, savedView, onSavedViewChange, ...viewerProps }: ViewerProps & {
   generation: GenerationState
   courses: CourseData[]
   onAddCourses: () => void
+  /** 저장 탭에서 연 시간표 (null = 생성된 조합 보기) */
+  savedView: string | null
+  onSavedViewChange: (id: string | null) => void
 }) {
+  const saved = useSaved()
+  const entry = saved.find((s) => s.id === savedView)
   const output = generation.status === 'done' ? generation.output : generation.status === 'running' ? generation.previous : null
 
+  // 저장한 시간표는 조건·담은 강의와 상관없이 그대로 보여 줌
+  if (entry) {
+    return <SavedResult entry={entry} saved={saved} courses={courses} preview={viewerProps.preview} onOpen={onSavedViewChange} />
+  }
   if (generation.status === 'idle') {
     return (
       <EmptyState
@@ -59,7 +70,8 @@ function Results({ output, running, courses, viewer, onViewerChange, notify, pre
   courses: CourseData[]
 }) {
   const config = useConfig()
-  const showAvoid = useStore().state.showAvoid
+  const { state, dispatch } = useStore()
+  const saved = useSaved()
   const byId = useMemo(() => new Map(courses.map((c) => [c.id, c])), [courses])
   const schedules = output.schedules
   const pins = viewer.pins
@@ -69,25 +81,14 @@ function Results({ output, running, courses, viewer, onViewerChange, notify, pre
   const index = Math.max(0, viewer.key ? filtered.findIndex((s) => scheduleKey(s) === viewer.key) : 0)
   const current = filtered[index]
   const currentCourses = current ? resolve(current) : []
-  // 지금 보이는 시간표의 강의끼리만 색을 나눠서, 한 화면 안에서는 색이 겹치지 않게
-  const shownNames = [...new Set(currentCourses.map((c) => c.name))].join('|')
-  const colors = useMemo(() => assignColors(shownNames ? shownNames.split('|') : []), [shownNames])
+  const colors = useShownColors(currentCourses)
+  const savedEntry = current ? saved.find((s) => s.id === scheduleKey(current)) : undefined
 
   const go = (delta: number) => {
     if (!filtered.length) return
     onViewerChange({ pins, key: scheduleKey(filtered[(index + delta + filtered.length) % filtered.length]) })
   }
-
-  // ← → 키로 넘기기
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return
-      if (e.key === 'ArrowLeft') go(-1)
-      if (e.key === 'ArrowRight') go(1)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  })
+  useArrowKeys(go)
 
   /** 고정 조건을 바꾸되, 지금 보던 시간표가 여전히 맞으면 그대로 머묾 */
   const applyPins = (next: Pins, failMessage: string) => {
@@ -132,53 +133,46 @@ function Results({ output, running, courses, viewer, onViewerChange, notify, pre
     applyPins(new Map(pins).set(course.name, next), '다른 분반이 없어요')
   }
 
+  const save = (name: string) => {
+    if (!current) return
+    dispatch({
+      type: 'saveSchedule',
+      schedule: { id: scheduleKey(current), name, courseIds: current.courseIds, totalCredits: current.totalCredits, savedAt: Date.now() },
+    })
+    notify(`'${name}' 저장함`)
+  }
+  const unsave = (entry: SavedSchedule) => {
+    dispatch({ type: 'removeSaved', id: entry.id })
+    notify(`'${entry.name}' 저장 취소`, { label: '되돌리기', onClick: () => dispatch({ type: 'saveSchedule', schedule: entry }) })
+  }
+
   const missingDesired = output.desiredNames.filter((n) => !currentCourses.some((c) => c.name === n))
   const requiredSet = new Set(output.requiredNames)
 
   return (
     <div className="grid gap-x-10 gap-y-8 xl:grid-cols-[minmax(0,1fr)_280px]">
       <div className="min-w-0">
-        {/* 큰 제목 + 총 학점 + 캡슐형 페이지 넘김 (스크롤 없이 바로 보이도록 한 줄에) */}
-        <div className="mb-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-          <div>
-            <h2 className="text-[28px] leading-tight font-bold tracking-tight">시간표</h2>
-            <p className="mt-0.5 flex items-center gap-1.5 text-[13px] text-fg-muted tabular-nums">
-              {running ? (
-                <>
-                  <Loader2 size={12} className="animate-spin" /> 다시 계산 중
-                </>
-              ) : (
-                <>가능한 조합 {schedules.length.toLocaleString()}개</>
-              )}
-            </p>
-          </div>
-          {current && (
-            <div className="flex w-full items-center justify-between gap-5 sm:ml-auto sm:w-auto">
-              {/* 왼쪽 제목 블록과 같은 글자 크기·줄 높이 → '시간표'↔'20학점', 설명↔'8과목' 이 같은 줄 */}
-              <div className="sm:text-right">
-                <p className="text-[28px] leading-tight font-bold tracking-tight tabular-nums">
-                  {current.totalCredits}
-                  <span className="ml-0.5 text-[15px] font-semibold text-fg-muted">학점</span>
-                </p>
-                <p className="mt-0.5 text-[13px] text-fg-muted tabular-nums">
-                  {currentCourses.length}과목 · 목표 {config.minCredits}–{config.maxCredits}학점
-                </p>
-              </div>
-              <div className="flex h-9 items-center rounded-full bg-surface-sunken px-0.5">
-                <IconButton label="이전 시간표 (←)" size="sm" className="size-8" onClick={() => go(-1)}>
-                  <ChevronLeft size={18} strokeWidth={2.2} />
-                </IconButton>
-                <span className="min-w-20 text-center text-[14px] font-semibold tabular-nums">
-                  {(index + 1).toLocaleString()}
-                  <span className="font-normal text-fg-muted"> / {filtered.length.toLocaleString()}</span>
-                </span>
-                <IconButton label="다음 시간표 (→)" size="sm" className="size-8" onClick={() => go(1)}>
-                  <ChevronRight size={18} strokeWidth={2.2} />
-                </IconButton>
-              </div>
-            </div>
-          )}
-        </div>
+        <ResultHeader
+          title="시간표"
+          subtitle={
+            running ? (
+              <>
+                <Loader2 size={12} className="animate-spin" /> 다시 계산 중
+              </>
+            ) : (
+              <>가능한 조합 {schedules.length.toLocaleString()}개</>
+            )
+          }
+          stats={current && { credits: current.totalCredits, count: currentCourses.length, config }}
+          controls={
+            current && (
+              <>
+                <SaveButton entry={savedEntry} defaultName={`시간표 ${saved.length + 1}`} onSave={save} onUnsave={unsave} />
+                <Pager index={index} total={filtered.length} go={go} />
+              </>
+            )
+          }
+        />
 
         {/* 시간표 위에는 아무것도 끼워 넣지 않음 → 고정·재계산해도 시간표가 움직이지 않게 */}
         {current ? (
@@ -186,7 +180,7 @@ function Results({ output, running, courses, viewer, onViewerChange, notify, pre
             <Timetable
               courses={currentCourses}
               colors={colors}
-              avoid={showAvoid ? { days: config.excludedDays, times: config.excludedTimes } : undefined}
+              avoid={state.showAvoid ? { days: config.excludedDays, times: config.excludedTimes } : undefined}
               preview={preview ?? undefined}
               pinned={new Set(pins.keys())}
               onCourseClick={toggleCourse}
@@ -214,7 +208,6 @@ function Results({ output, running, courses, viewer, onViewerChange, notify, pre
             )}
           </div>
         )}
-
       </div>
 
       {current && (
@@ -231,30 +224,15 @@ function Results({ output, running, courses, viewer, onViewerChange, notify, pre
             </div>
             <ul className="-mx-2">
               {currentCourses.map((c) => {
-                const color = courseColorVars(colors.get(c.name) ?? 1)
                 const isPinned = pins.has(c.name)
                 return (
                   <li key={c.id} className="flex items-center rounded-md transition-colors hover:bg-surface-hover">
-                    <button
-                      type="button"
-                      onClick={() => toggleCourse(c)}
-                      aria-pressed={isPinned}
-                      className="flex min-w-0 flex-1 items-start gap-2.5 px-2 py-2 text-left"
-                    >
-                      <span className="mt-[5px] size-2.5 shrink-0 rounded-full" style={{ background: color.bar }} />
-                      <span className="min-w-0 flex-1">
-                        <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                          <span className="min-w-0 text-[14px] leading-snug font-semibold tracking-tight break-keep [overflow-wrap:anywhere]">{c.name}</span>
-                          {requiredSet.has(c.name) ? (
-                            <Badge tone="accent">필수</Badge>
-                          ) : output.desiredNames.includes(c.name) ? null : (
-                            <Badge>채움</Badge>
-                          )}
-                        </span>
-                        <span className="block truncate text-[12px] text-fg-muted">
-                          {c.professor} · {c.credits}학점 · {timeSummary(c)}
-                        </span>
-                      </span>
+                    <button type="button" onClick={() => toggleCourse(c)} aria-pressed={isPinned} className="flex min-w-0 flex-1 text-left">
+                      <CourseInfo
+                        course={c}
+                        color={colors.get(c.name)}
+                        badge={requiredSet.has(c.name) ? <Badge tone="accent">필수</Badge> : output.desiredNames.includes(c.name) ? null : <Badge>채움</Badge>}
+                      />
                     </button>
                     {isPinned && pins.get(c.name) !== ANY && (
                       <IconButton label="다른 분반으로" size="sm" className="text-accent-fg hover:text-accent-fg" onClick={() => cycleSection(c)}>
@@ -300,7 +278,220 @@ function Results({ output, running, courses, viewer, onViewerChange, notify, pre
           )}
         </aside>
       )}
-
     </div>
   )
+}
+
+/** 저장한 시간표 보기: 조건과 무관하게 저장한 강의 그대로, ← → 로 저장한 것끼리 넘김 */
+function SavedResult({ entry, saved, courses, preview, onOpen }: {
+  entry: SavedSchedule
+  saved: SavedSchedule[]
+  courses: CourseData[]
+  preview?: PreviewItem[] | null
+  onOpen: (id: string | null) => void
+}) {
+  const config = useConfig()
+  const showAvoid = useStore().state.showAvoid
+  const byId = useMemo(() => new Map(courses.map((c) => [c.id, c])), [courses])
+  const list = entry.courseIds.map((id) => byId.get(id)).filter((c): c is CourseData => !!c)
+  const colors = useShownColors(list)
+  const index = saved.findIndex((s) => s.id === entry.id)
+  const go = (delta: number) => onOpen(saved[(index + delta + saved.length) % saved.length].id)
+  useArrowKeys(go)
+
+  return (
+    <div className="grid gap-x-10 gap-y-8 xl:grid-cols-[minmax(0,1fr)_280px]">
+      <div className="min-w-0">
+        <ResultHeader
+          title={entry.name}
+          subtitle={
+            <>
+              저장한 시간표 ·
+              <button type="button" onClick={() => onOpen(null)} className="font-medium text-accent-fg hover:underline">
+                조합으로 돌아가기
+              </button>
+            </>
+          }
+          stats={{ credits: entry.totalCredits, count: list.length, config }}
+          controls={<Pager index={index} total={saved.length} go={go} />}
+        />
+        <Timetable
+          courses={list}
+          colors={colors}
+          avoid={showAvoid ? { days: config.excludedDays, times: config.excludedTimes } : undefined}
+          preview={preview ?? undefined}
+          pinned={NO_PINS}
+        />
+      </div>
+      <aside className="xl:pt-[72px]">
+        <p className="mb-1 flex h-7 items-center text-[13px] font-medium text-fg-muted">이 시간표의 강의</p>
+        <ul className="-mx-2">
+          {list.map((c) => (
+            <li key={c.id}>
+              <CourseInfo course={c} color={colors.get(c.name)} />
+            </li>
+          ))}
+        </ul>
+      </aside>
+    </div>
+  )
+}
+
+const NO_PINS = new Set<string>()
+
+/** 큰 제목 + 총 학점 + 오른쪽 조작 버튼 (조합 보기·저장 보기 공통, 높이 고정) */
+function ResultHeader({ title, subtitle, stats, controls }: {
+  title: string
+  subtitle: ReactNode
+  stats?: { credits: number; count: number; config: ScheduleConfig } | null | false
+  controls?: ReactNode
+}) {
+  return (
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+      <div className="min-w-0">
+        <h2 className="truncate text-[28px] leading-tight font-bold tracking-tight">{title}</h2>
+        <p className="mt-0.5 flex items-center gap-1.5 text-[13px] text-fg-muted tabular-nums">{subtitle}</p>
+      </div>
+      {stats && (
+        <div className="flex w-full items-center justify-between gap-5 sm:ml-auto sm:w-auto">
+          {/* 왼쪽 제목 블록과 같은 글자 크기·줄 높이 → '시간표'↔'20학점', 설명↔'8과목' 이 같은 줄 */}
+          <div className="sm:text-right">
+            <p className="text-[28px] leading-tight font-bold tracking-tight tabular-nums">
+              {stats.credits}
+              <span className="ml-0.5 text-[15px] font-semibold text-fg-muted">학점</span>
+            </p>
+            <p className="mt-0.5 text-[13px] text-fg-muted tabular-nums">
+              {stats.count}과목 · 목표 {stats.config.minCredits}–{stats.config.maxCredits}학점
+            </p>
+          </div>
+          <div className="flex items-center gap-1.5">{controls}</div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Pager({ index, total, go }: { index: number; total: number; go: (delta: number) => void }) {
+  return (
+    <div className="flex h-9 items-center rounded-full bg-surface-sunken px-0.5">
+      <IconButton label="이전 시간표 (←)" size="sm" className="size-8" onClick={() => go(-1)}>
+        <ChevronLeft size={18} strokeWidth={2.2} />
+      </IconButton>
+      <span className="min-w-20 text-center text-[14px] font-semibold tabular-nums">
+        {(index + 1).toLocaleString()}
+        <span className="font-normal text-fg-muted"> / {total.toLocaleString()}</span>
+      </span>
+      <IconButton label="다음 시간표 (→)" size="sm" className="size-8" onClick={() => go(1)}>
+        <ChevronRight size={18} strokeWidth={2.2} />
+      </IconButton>
+    </div>
+  )
+}
+
+/** 저장(북마크): 누르면 이름을 정하는 작은 창, 저장된 상태에서 누르면 저장 취소 */
+function SaveButton({ entry, defaultName, onSave, onUnsave }: {
+  entry?: SavedSchedule
+  defaultName: string
+  onSave: (name: string) => void
+  onUnsave: (entry: SavedSchedule) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [name, setName] = useState('')
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [open])
+
+  const click = () => {
+    if (entry) return onUnsave(entry)
+    setName(defaultName)
+    setOpen((o) => !o)
+  }
+  const submit = () => {
+    onSave(name.trim() || defaultName)
+    setOpen(false)
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <IconButton
+        label={entry ? `저장됨: ${entry.name} (누르면 저장 취소)` : '이 시간표 저장'}
+        className={cx('bg-surface-sunken', entry && 'text-accent-fg hover:text-accent-fg')}
+        onClick={click}
+      >
+        <Bookmark size={17} fill={entry ? 'currentColor' : 'none'} />
+      </IconButton>
+      {open && (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            submit()
+          }}
+          className="animate-pop absolute top-full right-0 z-40 mt-2 w-64 space-y-3 rounded-lg bg-surface-raised p-3 shadow-lg"
+        >
+          <input
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onFocus={(e) => e.target.select()}
+            onKeyDown={(e) => e.key === 'Escape' && setOpen(false)}
+            maxLength={30}
+            aria-label="시간표 이름"
+            className="h-9 w-full rounded-md bg-surface-sunken px-3 text-[15px] outline-none focus:ring-2 focus:ring-accent-soft"
+          />
+          <div className="flex justify-end gap-1.5">
+            <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
+              취소
+            </Button>
+            <Button variant="primary" size="sm" type="submit">
+              저장
+            </Button>
+          </div>
+        </form>
+      )}
+    </div>
+  )
+}
+
+/** 강의 한 줄: 색 점 + 과목명(+배지) + 교수·학점·시간 */
+function CourseInfo({ course, color, badge }: { course: CourseData; color?: number; badge?: ReactNode }) {
+  return (
+    <span className="flex min-w-0 flex-1 items-start gap-2.5 px-2 py-2">
+      <span className="mt-[5px] size-2.5 shrink-0 rounded-full" style={{ background: courseColorVars(color ?? 1).bar }} />
+      <span className="min-w-0 flex-1">
+        <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+          <span className="min-w-0 text-[14px] leading-snug font-semibold tracking-tight break-keep [overflow-wrap:anywhere]">{course.name}</span>
+          {badge}
+        </span>
+        <span className="block truncate text-[12px] text-fg-muted">
+          {course.professor} · {course.credits}학점 · {timeSummary(course)}
+        </span>
+      </span>
+    </span>
+  )
+}
+
+/** 지금 보이는 시간표의 강의끼리만 색을 나눠서, 한 화면 안에서는 색이 겹치지 않게 */
+function useShownColors(list: CourseData[]) {
+  const names = [...new Set(list.map((c) => c.name))].join('|')
+  return useMemo(() => assignColors(names ? names.split('|') : []), [names])
+}
+
+/** ← → 키로 넘기기 (입력 중에는 무시) */
+function useArrowKeys(go: (delta: number) => void) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return
+      if (e.key === 'ArrowLeft') go(-1)
+      if (e.key === 'ArrowRight') go(1)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
 }

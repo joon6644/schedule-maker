@@ -1,4 +1,4 @@
-import { BookOpen, CalendarRange, Download, Loader2, Monitor, Moon, Search, SlidersHorizontal, Sun, Upload } from 'lucide-react'
+import { BookOpen, Bookmark, CalendarRange, Download, Loader2, Monitor, Moon, Search, SlidersHorizontal, Sun, Upload } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Button, cx, IconButton, Segmented, Toast, type ToastData } from './components/ui'
 import { parseConfigFile, toConfigFile } from './engine/config'
@@ -7,13 +7,14 @@ import { ConstraintsPanel } from './features/ConstraintsPanel'
 import { ResultSummary } from './features/ResultSummary'
 import { ResultView } from './features/ResultView'
 import type { PreviewItem } from './features/Timetable'
+import { SavedPanel } from './features/SavedPanel'
 import { SearchPanel } from './features/SearchPanel'
 import { useCourses, useGeneration, useTerms } from './lib/data'
-import { useConfig, useStore, type ThemePref } from './lib/store'
+import { useConfig, useSaved, useStore, type ThemePref } from './lib/store'
 import { describeChange, EMPTY_VIEWER, reconcileViewer, scheduleKey, type ViewerState } from './lib/viewer'
 import type { GenerationOutput, ScheduleConfig } from './engine/types'
 
-type Tab = 'search' | 'basket' | 'constraints' | 'result'
+type Tab = 'search' | 'basket' | 'constraints' | 'saved' | 'result'
 
 export default function App() {
   const { state, dispatch } = useStore()
@@ -124,6 +125,14 @@ export default function App() {
   }, [tab])
 
   const basketCount = config.required.length + config.desired.length
+
+  /** 저장 탭에서 연 시간표 (모바일은 열면 시간표 화면으로) */
+  const savedCount = useSaved().length
+  const [savedView, setSavedView] = useState<string | null>(null)
+  const openSaved = (id: string | null) => {
+    setSavedView(id)
+    if (id && !isDesktop) setTab('result')
+  }
   const resultCount = generation.status === 'done' ? generation.output.schedules.length : null
   const error = termsError || coursesError
 
@@ -131,6 +140,7 @@ export default function App() {
     { value: 'search', label: '강의 검색' },
     { value: 'basket', label: <>담은 강의{basketCount > 0 && <Count n={basketCount} />}</> },
     { value: 'constraints', label: '조건' },
+    { value: 'saved', label: <>저장{savedCount > 0 && <Count n={savedCount} />}</> },
   ]
   const sidebarTab = tab === 'result' ? 'search' : tab
 
@@ -142,6 +152,10 @@ export default function App() {
     ) : t === 'basket' ? (
       <div className="h-full overflow-y-auto">
         <BasketPanel courses={courses} onBrowse={() => setTab('search')} />
+      </div>
+    ) : t === 'saved' ? (
+      <div className="h-full overflow-y-auto">
+        <SavedPanel courses={courses} activeId={savedView} onOpen={openSaved} notify={notify} />
       </div>
     ) : (
       <div className="h-full overflow-y-auto">
@@ -158,6 +172,8 @@ export default function App() {
       onViewerChange={setViewer}
       notify={notify}
       preview={isDesktop ? preview : null}
+      savedView={savedView}
+      onSavedViewChange={setSavedView}
     />
   )
 
@@ -214,10 +230,11 @@ export default function App() {
       </div>
       {tab !== 'result' && <ResultSummary generation={generation} credits={currentCredits} variant="floating" onOpen={() => setTab('result')} />}
       <Toast toast={toast} onClose={() => setToast(null)} className={tab === 'result' ? 'bottom-24' : 'bottom-[152px]'} />
-      <nav className="material fixed inset-x-4 bottom-4 z-30 grid h-16 grid-cols-4 rounded-full p-1 shadow-lg">
+      <nav className="material fixed inset-x-4 bottom-4 z-30 grid h-16 grid-cols-5 rounded-full p-1 shadow-lg">
         <NavItem active={tab === 'search'} onClick={() => setTab('search')} icon={<Search size={20} />} label="검색" />
         <NavItem active={tab === 'basket'} onClick={() => setTab('basket')} icon={<BookOpen size={20} />} label="담은 강의" badge={basketCount || undefined} />
         <NavItem active={tab === 'constraints'} onClick={() => setTab('constraints')} icon={<SlidersHorizontal size={20} />} label="조건" />
+        <NavItem active={tab === 'saved'} onClick={() => setTab('saved')} icon={<Bookmark size={20} />} label="저장" badge={savedCount || undefined} />
         <NavItem
           active={tab === 'result'}
           onClick={() => setTab('result')}

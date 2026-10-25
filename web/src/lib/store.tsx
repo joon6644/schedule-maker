@@ -6,11 +6,23 @@ import type { CourseFilter, Day, ExcludedTime, ScheduleConfig } from '../engine/
 export type ListType = 'required' | 'desired'
 export type ThemePref = 'system' | 'light' | 'dark'
 
+/** 이름을 붙여 저장한 시간표 (강의 조합 그대로 보관 → 조건이 바뀌어도 다시 볼 수 있음) */
+export interface SavedSchedule {
+  /** scheduleKey (정렬한 강좌번호) — 같은 조합은 한 번만 저장 */
+  id: string
+  name: string
+  courseIds: string[]
+  totalCredits: number
+  savedAt: number
+}
+
 export interface AppState {
   /** 항상 최신 학기 (지난 학기는 보지 않음) */
   termKey: string | null
   /** 학기별 설정 (학기마다 강의가 달라서 따로 보관) */
   configs: Record<string, ScheduleConfig>
+  /** 학기별 저장한 시간표 */
+  saved: Record<string, SavedSchedule[]>
   theme: ThemePref
   /** 피하고 싶은 시간을 시간표에 빗금으로 표시 */
   showAvoid: boolean
@@ -31,11 +43,14 @@ export type Action =
   | { type: 'removeExcludedTime'; index: number }
   | { type: 'setExcludedTimes'; times: ExcludedTime[] }
   | { type: 'replaceConfig'; config: ScheduleConfig }
+  | { type: 'saveSchedule'; schedule: SavedSchedule }
+  | { type: 'renameSaved'; id: string; name: string }
+  | { type: 'removeSaved'; id: string }
 
 const STORAGE_KEY = 'schedule-maker:v1'
 
 function loadState(): AppState {
-  const fallback: AppState = { termKey: null, configs: {}, theme: 'system', showAvoid: false }
+  const fallback: AppState = { termKey: null, configs: {}, saved: {}, theme: 'system', showAvoid: false }
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     return raw ? { ...fallback, ...JSON.parse(raw) } : fallback
@@ -58,7 +73,13 @@ function reducer(state: AppState, action: Action): AppState {
     case 'setTerm': {
       // 새 학기로 넘어가면 지난 학기 설정은 지움 (강의가 달라 다시 쓸 일이 없음)
       const kept = state.configs[action.termKey]
-      return { ...state, termKey: action.termKey, configs: kept ? { [action.termKey]: kept } : {} }
+      const keptSaved = state.saved[action.termKey]
+      return {
+        ...state,
+        termKey: action.termKey,
+        configs: kept ? { [action.termKey]: kept } : {},
+        saved: keptSaved ? { [action.termKey]: keptSaved } : {},
+      }
     }
     case 'setTheme':
       return { ...state, theme: action.theme }
@@ -109,7 +130,18 @@ function reducer(state: AppState, action: Action): AppState {
       return updateConfig(state, (c) => ({ ...c, excludedTimes: action.times }))
     case 'replaceConfig':
       return updateConfig(state, () => action.config)
+    case 'saveSchedule':
+      return updateSaved(state, (list) => [...list.filter((x) => x.id !== action.schedule.id), action.schedule].sort((a, b) => a.savedAt - b.savedAt))
+    case 'renameSaved':
+      return updateSaved(state, (list) => list.map((x) => (x.id === action.id ? { ...x, name: action.name } : x)))
+    case 'removeSaved':
+      return updateSaved(state, (list) => list.filter((x) => x.id !== action.id))
   }
+}
+
+function updateSaved(state: AppState, update: (list: SavedSchedule[]) => SavedSchedule[]): AppState {
+  if (!state.termKey) return state
+  return { ...state, saved: { ...state.saved, [state.termKey]: update(state.saved[state.termKey] ?? []) } }
 }
 
 const StoreContext = createContext<{ state: AppState; dispatch: Dispatch<Action> } | null>(null)
@@ -137,4 +169,10 @@ export function useStore() {
 
 export function useConfig() {
   return configOf(useStore().state)
+}
+
+const NO_SAVED: SavedSchedule[] = []
+export function useSaved() {
+  const { state } = useStore()
+  return (state.termKey && state.saved[state.termKey]) || NO_SAVED
 }
