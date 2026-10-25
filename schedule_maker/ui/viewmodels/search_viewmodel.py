@@ -2,7 +2,6 @@
 검색 탭 ViewModel
 강의 검색, 필터링, 정렬 로직 관리
 """
-from typing import List, Any, Optional, Dict
 from .base_viewmodel import BaseViewModel
 
 class SearchViewModel(BaseViewModel):

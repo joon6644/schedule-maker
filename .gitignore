@@ -40,3 +40,8 @@ monitor_*.py
 
 # OS
 Thumbs.db
+
+# Web frontend
+node_modules/
+!web/index.html
+*.tsbuildinfo

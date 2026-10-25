@@ -2,14 +2,10 @@
 설정 탭 ViewModel (리팩토링 버전)
 단일 책임 원칙을 준수하도록 매니저 클래스들로 책임 분리
 """
-from typing import List, Any, Optional
+import copy
+
 from .base_viewmodel import BaseViewModel
 from .managers import CourseListManager, SettingsManager
-
-try:
-    from ...core.config import CourseFilter
-except ImportError:
-    from core.config import CourseFilter
 
 
 class ConfigViewModel(BaseViewModel):
@@ -47,7 +43,6 @@ class ConfigViewModel(BaseViewModel):
         if current and hasattr(current, 'clone'):
             self._last_generated_config = current.clone()
         else:
-            import copy
             self._last_generated_config = copy.deepcopy(current)
         self._check_dirty()
 
@@ -232,7 +227,6 @@ class ConfigViewModel(BaseViewModel):
             self._original_config = config.clone()
         else:
             # Fallback for mock objects or errors
-            import copy
             self._original_config = copy.deepcopy(config)
             
         self._excluded_times_list = self.settings_manager.get_excluded_times()

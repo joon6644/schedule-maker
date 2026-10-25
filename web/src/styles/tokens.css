@@ -1,0 +1,146 @@
+/*
+ * Design Tokens — Figma 변수와 1:1로 대응하는 단일 출처 (Single Source of Truth)
+ *
+ * 디자인 원칙
+ *   1. 60·30·10 — 중립(회색) 60%, 보조(면·글자 위계) 30%, 강조색 10%. 강조색은 하나(accent)만.
+ *      필수/희망 같은 '역할'에 색을 따로 주지 않음 (필수 = accent, 희망 = 중립).
+ *      빨강(danger)은 오류·삭제에만, 노랑(warning)은 경고 문구에만.
+ *   2. OKLCH 균일 팔레트 — 강의 색 10개는 같은 밝기·채도에 색상(hue)만 다름
+ *      (Radix Colors / Tailwind v4 와 같은 방식). 배경 L=0.955 C=0.03, 글자 L=0.42 C=0.075 → 대비 7:1 이상
+ *   3. 배경 위계 — bg(메인) → surface(사이드바·그룹 배경) → surface-raised(셀). 구분선 대신 배경 대비
+ *
+ * 이름 규칙:  CSS  --color-surface-raised   ↔   Figma  color/surface/raised
+ *             CSS  --color-surface          ↔   Figma  color/surface/default (하위 토큰이 있는 경우)
+ *             CSS  --radius-md              ↔   Figma  radius/md
+ * Figma 컬렉션: "Color · Light", "Color · Dark" (Starter 플랜: 모드 1개 제한), "Radius" + 이펙트 스타일 shadow/*
+ *
+ * 컴포넌트에서는 색상 값을 직접 쓰지 말고 반드시 이 토큰(또는 Tailwind 매핑)을 사용할 것.
+ * 자세한 협업 방식은 docs/figma-workflow.md 참고.
+ */
+
+@theme static {
+  /* Tailwind 기본 팔레트 비활성화 → 토큰에 없는 색은 쓸 수 없음 */
+  --color-*: initial;
+
+  /* ── Color / Background & Surface ─────────────────── */
+  --color-bg: #ffffff; /* 메인 영역 (systemBackground) */
+  --color-surface: #f5f5f7; /* 사이드바·그룹 배경 (apple.com gray) */
+  --color-surface-raised: #ffffff; /* 그룹 위의 셀 */
+  --color-surface-sunken: #7676801f; /* 검색창·세그먼트 트랙 (tertiarySystemFill) */
+  --color-surface-hover: #0000000a;
+  --color-thumb: #ffffff; /* 세그먼트 선택 표시 */
+
+  /* ── Color / Border (거의 쓰지 않음) ─────────────────── */
+  --color-border: #3c3c434a; /* separator */
+  --color-border-strong: #c6c6c8; /* opaqueSeparator */
+  --color-grid: #3c3c4317; /* 시간표 격자 (희미하게) */
+
+  /* ── Color / Text ─────────────────────────────────── */
+  --color-fg: #1d1d1f;
+  --color-fg-muted: #6e6e73;
+  --color-fg-subtle: #a1a1a6;
+  --color-fg-on-accent: #ffffff;
+
+  /* ── Color / Accent (유일한 강조색, OKLCH 0.52 0.14 262) ── */
+  --color-accent: #3a65b8;
+  --color-accent-hover: #2d54a0;
+  --color-accent-soft: #e7f1ff;
+  --color-accent-fg: #3057a3;
+  --color-toggle: #3a65b8; /* 스위치 켜짐 = 강조색 */
+
+  /* ── Color / Status (오류·경고 문구에만) ─────────────── */
+  --color-danger: #c13c3b;
+  --color-danger-soft: #fceeec;
+  --color-warning: #9a6418;
+  --color-warning-soft: #fdf1d8;
+  --color-success: #2e7d4a;
+
+  /* ── Color / Timetable course palette (OKLCH 균일: 10가지 hue 를 36° 간격으로) ── */
+  --color-course-1-bg: #e3f2ff; --color-course-1-fg: #304e75; --color-course-1-bar: #6b9bd8; /* blue   255 */
+  --color-course-2-bg: #dbf6fe; --color-course-2-fg: #035669; --color-course-2-bar: #3aa7c4; /* cyan   219 */
+  --color-course-3-bg: #dbf7f2; --color-course-3-fg: #005a51; --color-course-3-bar: #38ad9e; /* teal   183 */
+  --color-course-4-bg: #e4f6e5; --color-course-4-fg: #2f5834; --color-course-4-bar: #6baa72; /* green  147 */
+  --color-course-5-bg: #f0f2dc; --color-course-5-fg: #4f511b; --color-course-5-bar: #9b9e4d; /* olive  111 */
+  --color-course-6-bg: #fceedb; --color-course-6-fg: #654617; --color-course-6-bar: #be8e48; /* sand    75 */
+  --color-course-7-bg: #ffeae2; --color-course-7-fg: #703e2d; --color-course-7-bar: #d08167; /* clay    39 */
+  --color-course-8-bg: #ffe8ee; --color-course-8-fg: #6f3b49; --color-course-8-bar: #ce7c92; /* red      3 */
+  --color-course-9-bg: #fceafb; --color-course-9-fg: #633e62; --color-course-9-bar: #bb81ba; /* rose   327 */
+  --color-course-10-bg: #f0edff; --color-course-10-fg: #4d4573; --color-course-10-bar: #988cd4; /* violet 291 */
+
+  /* ── Shadow ───────────────────────────────────────── */
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.06);
+  --shadow-md: 0 3px 8px rgb(0 0 0 / 0.12), 0 3px 1px rgb(0 0 0 / 0.04); /* iOS 세그먼트 thumb */
+  --shadow-lg: 0 8px 28px rgb(0 0 0 / 0.14), 0 1px 3px rgb(0 0 0 / 0.06); /* 떠 있는 탭 바·토스트 */
+
+  /* ── Radius ───────────────────────────────────────── */
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 22px;
+
+  /* ── Typography ───────────────────────────────────── */
+  /* macOS/iOS 에서는 SF Pro + Apple SD Gothic Neo, 그 외에서는 Pretendard */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Apple SD Gothic Neo', 'Pretendard Variable', Pretendard,
+    system-ui, 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+}
+
+:root {
+  color-scheme: light;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* 순수 검정 대신 짙은 회색 (눈부심을 줄이고 면 구분이 보이도록) — OKLCH L 0.22~0.30 */
+  --color-bg: #222325;
+  --color-surface: #1b1b1e;
+  --color-surface-raised: #2d2e30;
+  --color-surface-sunken: #ffffff14;
+  --color-surface-hover: #ffffff0d;
+  --color-thumb: #4d4d4f;
+
+  --color-border: #ffffff26;
+  --color-border-strong: #424244;
+  --color-grid: #ffffff12;
+
+  /* 글자도 순백 대신 한 단계 낮춘 밝기 (본문 대비 12.7:1) */
+  --color-fg: #e7e7ea;
+  --color-fg-muted: #aaaaad;
+  --color-fg-subtle: #747477;
+  --color-fg-on-accent: #ffffff;
+
+  --color-accent: #4972c0; /* 버튼 채움: 흰 글자 대비 4.7 */
+  --color-accent-hover: #5781d1;
+  --color-accent-soft: #2c3d5d;
+  --color-accent-fg: #9ebef8; /* 글자용 */
+  --color-toggle: #4972c0;
+
+  --color-danger: #e97871;
+  --color-danger-soft: #562d2a;
+  --color-warning: #e6bd77;
+  --color-warning-soft: #4b3a1d;
+  --color-success: #6bc48a;
+
+  /* 강의 색: 회색 바탕 위에서도 구분되도록 L 0.355, 글자 L 0.92 (대비 8.7:1) */
+  --color-course-1-bg: #2c3d53; --color-course-1-fg: #cfe7ff; --color-course-1-bar: #73a1dc;
+  --color-course-2-bg: #1d414c; --color-course-2-fg: #c0edfb; --color-course-2-bar: #49adc9;
+  --color-course-3-bg: #1d443e; --color-course-3-fg: #c1f0e8; --color-course-3-bar: #48b3a4;
+  --color-course-4-bg: #2c422e; --color-course-4-fg: #d0eed2; --color-course-4-bar: #73af7a;
+  --color-course-5-bg: #3d3e22; --color-course-5-fg: #e5e8c2; --color-course-5-bar: #a1a458;
+  --color-course-6-bg: #4a3820; --color-course-6-fg: #f9e1c0; --color-course-6-bar: #c39553;
+  --color-course-7-bg: #50342a; --color-course-7-fg: #ffdacc; --color-course-7-bar: #d4886f;
+  --color-course-8-bg: #503239; --color-course-8-fg: #ffd7e1; --color-course-8-bar: #d38498;
+  --color-course-9-bg: #493348; --color-course-9-fg: #f7daf6; --color-course-9-bar: #c088bf;
+  --color-course-10-bg: #3c3852; --color-course-10-fg: #e4dfff; --color-course-10-bar: #9e93d8;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-md: 0 3px 8px rgb(0 0 0 / 0.3), 0 3px 1px rgb(0 0 0 / 0.08);
+  --shadow-lg: 0 8px 28px rgb(0 0 0 / 0.4), 0 1px 3px rgb(0 0 0 / 0.25);
+}
+
+:root {
+  /* ── Layout ───────────────────────────────────────── */
+  --layout-header-height: 56px;
+  --layout-sidebar-width: 400px;
+  --timetable-hour-height: 58px;
+}

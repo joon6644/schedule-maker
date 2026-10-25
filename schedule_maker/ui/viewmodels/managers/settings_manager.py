@@ -55,9 +55,9 @@ class SettingsManager:
         """공강 요일 정보 반환"""
         config = self.config_service.get_config()
         if not config:
-            return {day: False for day in ['월', '화', '수', '목', '금']}
+            return {day: False for day in ['월', '화', '수', '목', '금', '토']}
         
-        return {day: (day in config.excluded_days) for day in ['월', '화', '수', '목', '금']}
+        return {day: (day in config.excluded_days) for day in ['월', '화', '수', '목', '금', '토']}
     
     def update_excluded_days(self, day_vars: Dict) -> None:
         """공강 요일 업데이트"""

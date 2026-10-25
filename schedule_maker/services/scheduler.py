@@ -1,23 +1,19 @@
 """
-시간표 조합 생성 스케줄러 (Randomized Backtracking + Restart Engine)
-DFS 백트래킹을 사용하여 시간표 조합을 생성하되, 다양성을 위해 무작위성을 도입함.
+시간표 조합 생성 스케줄러 (Exhaustive Backtracking Engine)
+DFS 백트래킹 한 번으로 조건을 만족하는 모든 시간표 조합을 생성함.
 
 최적화 적용:
-- 발견 속도 기반 조기 종료
+- 비트마스크 충돌 검사
+- 남은 학점 합(suffix sum) 기반 가지치기
 - 중복 제거 (content hash)
-- 휴리스틱 정렬 (학점 우선, 제약 많은 것 우선)
-- 로깅 강화
+- 순수 시간표가 없을 때만 무작위 채우기 (Fill 모드)
 """
-import re
 import random
-import sys
 import time
 import logging
 from collections import deque
 from typing import List, Optional, Callable
-from ..core.models import Course, Schedule, time_str_to_index
-from ..core.config import ScheduleConfig, CourseFilter
-from ..core.models import Course, Schedule, time_str_to_index
+from ..core.models import Course, Schedule, time_str_to_index, DAYS_MAP
 from ..core.config import ScheduleConfig, CourseFilter
 from ..core.constants import SchedulerConfig as AlgoConfig, BusinessConstants
 
@@ -112,21 +108,18 @@ class ScheduleGenerator:
     
     def generate_all_schedules(self, progress_callback: Optional[Callable[[str], None]] = None) -> List[Schedule]:
         """
-        Randomized Backtracking + Restart 전략으로 시간표 생성
-        
-        개선사항:
-        - 시간 기반 타임아웃 (AlgoConfig.MAX_TOTAL_TIME_SECONDS)
-        - 발견 속도 기반 조기 종료 (최근 N회 성공률 체크)
-        - 최대 Restart 횟수 제한
-        - 로깅 강화
+        전수 탐색 DFS로 시간표 생성
+
+        - 순수 시간표: 조건을 만족하는 모든 조합을 한 번의 DFS로 수집 (결정적)
+        - 순수 시간표가 없으면: 학점 미달 시간표에 '전학년' 강의를 무작위로 채움 (Fill 모드)
+        - 제한 시간 (AlgoConfig.MAX_TOTAL_TIME_SECONDS) 초과 시 찾은 결과까지만 반환
         """
         print("\n" + "=" * 60)
-        print("   시간표 조합 생성 시작 (Randomized Backtracking)")
+        print("   시간표 조합 생성 시작 (Exhaustive Backtracking)")
         print("=" * 60)
-        
+
         logger.info("시간표 생성 시작")
-        logger.info(f"설정: 목표={AlgoConfig.TARGET_RESULTS}, 배치={AlgoConfig.BATCH_SIZE}, "
-                   f"타임아웃={AlgoConfig.MAX_TOTAL_TIME_SECONDS}초")
+        logger.info(f"설정: 목표={AlgoConfig.TARGET_RESULTS}, 타임아웃={AlgoConfig.MAX_TOTAL_TIME_SECONDS}초")
         
         # 시작 시각 기록
         start_time = time.time()
@@ -173,96 +166,40 @@ class ScheduleGenerator:
         
         logger.info(f"탐색 대상: 필수 조합={len(required_combinations)}, 희망 후보={len(available_desired)} (휴리스틱 적용)")
         
-        # 4. Randomized Restart Loop with Optimizations
-        print(f"\n🔍 Randomized Exploration 시작 (Target: {AlgoConfig.TARGET_RESULTS}, "
-              f"Timeout: {AlgoConfig.MAX_TOTAL_TIME_SECONDS}초)...")
-        
-        # Phase Logic: Pure Mode -> Fill Mode
-        allow_fill = False
-        consecutive_pure_failures = 0
-        
-        restart_count = 0
-        found_signatures = set()  # 중복 제거용
-        
-        # 발견 속도 추적 (최근 N회의 발견 개수)
-        recent_discoveries = deque(maxlen=AlgoConfig.SATURATION_CHECK_WINDOW)
-        
-        has_found_pure_ever = False
-        
-        while len(self.results) < AlgoConfig.TARGET_RESULTS:
-            # === Restart 횟수 제한 (타임아웃 대신 자연스러운 임계값 사용) ===
-            restart_count += 1
-            if restart_count > AlgoConfig.MAX_RESTARTS:
-                logger.warning(f"최대 Restart 횟수 초과: {AlgoConfig.MAX_RESTARTS}")
-                print(f"\n🛑 최대 Restart 횟수({AlgoConfig.MAX_RESTARTS}) 초과 - 조기 종료")
-                break
-            
-            # 희망 강의 셔플
-            random.shuffle(available_desired)
-            random.shuffle(required_combinations)
-            
-            found_this_round = 0  # 이번 라운드에서 찾은 새로운 결과 수
-            
-            # 이번 라운드 탐색 (Early Pruning 적용)
-            for req_schedule in required_combinations:
-                cnt = self._run_randomized_dfs(
-                    req_schedule, 
-                    available_desired, 
-                    limit=AlgoConfig.BATCH_SIZE - found_this_round,
-                    allow_fill=allow_fill,
-                    found_signatures=found_signatures,
-                    start_time=start_time
-                )
-                found_this_round += cnt
-                
-                if found_this_round >= AlgoConfig.BATCH_SIZE:
-                    break
-            
-            # 발견 기록 추가
-            recent_discoveries.append(found_this_round)
-            
-            # 진행 상황 표시
-            if restart_count % AlgoConfig.PROGRESS_REPORT_INTERVAL == 0:
-                mode_str = "PURE" if not allow_fill else "FILL"
-                
-                # Callback 호출 (UI 업데이트)
-                if progress_callback:
-                    progress_callback(f"시간표 조합 찾는 중... {len(self.results):,}개 발견")
-                     
-                if sys.stdout:
-                    elapsed = time.time() - start_time
-                    sys.stdout.write(f"\r  ... Restart #{restart_count} [{mode_str}], Found: {len(self.results)}, Elapsed: {elapsed:.1f}s")
-                    sys.stdout.flush()
+        # 4. 순수 시간표 전수 탐색 (단일 DFS)
+        # 이전 방식(셔플 + 재시작 반복)도 결국 '가능한 모든 조합'에 수렴했지만,
+        # 결과가 다 나온 뒤에도 재시작마다 같은 트리를 처음부터 다시 탐색하느라 대부분의 시간을 썼음.
+        # 한 번의 DFS로 모든 조합을 정확히 한 번씩 방문해 같은 결과를 얻는다.
+        print(f"\n🔍 전수 탐색 시작 (최대 {BusinessConstants.MAX_SCHEDULE_RESULTS:,}개, "
+              f"제한 시간: {AlgoConfig.MAX_TOTAL_TIME_SECONDS}초)...")
 
-            # === Phase Logic: Pure -> Fill 전환 ===
-            if not allow_fill:
-                if found_this_round > 0:
-                    has_found_pure_ever = True
-                    consecutive_pure_failures = 0 
-                else:
-                    if not has_found_pure_ever:
-                        consecutive_pure_failures += 1
-                        if consecutive_pure_failures >= AlgoConfig.MAX_PURE_FAILURES:
-                            logger.info(f"Pure 모드에서 {AlgoConfig.MAX_PURE_FAILURES}회 연속 실패 - Fill 모드 전환")
-                            print(f"\n💡 [Mode Switch] 순수 시간표 탐색 실패({AlgoConfig.MAX_PURE_FAILURES}회). 무작위 채우기 모드로 전환합니다.")
-                            allow_fill = True
-                            consecutive_pure_failures = 0
-            
-            # === 발견 속도 기반 조기 종료 (Saturation Check) ===
-            if len(recent_discoveries) >= AlgoConfig.SATURATION_CHECK_WINDOW:
-                total_recent_finds = sum(recent_discoveries)
-                
-                if total_recent_finds < AlgoConfig.SATURATION_THRESHOLD:
-                    logger.info(f"포화 감지: 최근 {AlgoConfig.SATURATION_CHECK_WINDOW}회 중 {total_recent_finds}개만 발견")
-                    print(f"\n✨ 포화 감지: 최근 {AlgoConfig.SATURATION_CHECK_WINDOW}회 중 {total_recent_finds}개만 발견 - 조기 종료")
-                    break
-        
+        deadline = start_time + AlgoConfig.MAX_TOTAL_TIME_SECONDS
+        found_signatures = set()  # 중복 제거용 (content hash)
+
+        results = self._enumerate_pure_schedules(
+            required_combinations, available_desired, found_signatures, deadline, progress_callback
+        )
+
+        # 5. 순수 시간표가 하나도 없으면 무작위 채우기 모드
+        if not results:
+            logger.info("순수 시간표 없음 - Fill 모드 전환")
+            print("\n💡 [Mode Switch] 조건을 만족하는 순수 시간표가 없습니다. 무작위 채우기 모드로 전환합니다.")
+            partials = self._collect_partial_schedules(required_combinations, available_desired, deadline)
+            results = self._fill_partial_schedules(partials, found_signatures, progress_callback)
+
+        # 목표 개수를 넘으면 무작위 표본 추출, 아니면 순서만 섞어서 다양하게 보여줌
+        if len(results) > AlgoConfig.TARGET_RESULTS:
+            results = random.sample(results, AlgoConfig.TARGET_RESULTS)
+        else:
+            random.shuffle(results)
+        self.results = results
+
         elapsed_total = time.time() - start_time
-        print(f"\n\n✨ 총 {len(self.results)}개의 시간표 조합 발견! (Restarts: {restart_count}, 소요: {elapsed_total:.2f}초)")
+        print(f"\n✨ 총 {len(self.results)}개의 시간표 조합 발견! (소요: {elapsed_total:.2f}초)")
         print("=" * 60 + "\n")
-        
-        logger.info(f"생성 완료: {len(self.results)}개, Restarts: {restart_count}, 소요: {elapsed_total:.2f}초")
-        
+
+        logger.info(f"생성 완료: {len(self.results)}개, 소요: {elapsed_total:.2f}초")
+
         return self.results
 
     def _filter_available_courses(self, candidates: List[Course], excluded_courses: List[Course]) -> List[Course]:
@@ -301,103 +238,165 @@ class ScheduleGenerator:
         
         return sorted(courses, key=sort_key)
 
-    def _run_randomized_dfs(self, base_schedule: Schedule, candidates: List[Course], limit: int, 
-                            allow_fill: bool, found_signatures: set, start_time: float) -> int:
+    def _enumerate_pure_schedules(self, required_combinations: List[Schedule], candidates: List[Course],
+                                  found_signatures: set, deadline: float,
+                                  progress_callback: Optional[Callable[[str], None]] = None) -> List[Schedule]:
         """
-        단일 DFS 실행
-        allow_fill: True이면 부족 시 채우기 시도, False이면 순수 시간표만 탐색
-        found_signatures: 중복 체크용 집합
-        start_time: 타임아웃 체크용 시작 시각
+        필수 조합 × 희망 강의 부분집합을 한 번씩 방문하며 학점 조건을 만족하는 시간표를 모두 수집
+
+        가지치기:
+        - 최대 학점 초과 강의는 건너뜀
+        - 현재 학점 + 남은 후보 학점 합(suffix sum, O(1) 조회)으로도 최소 학점 미달이면 중단
         """
-        found_pure_count = 0
-        filled_buffer: List[Schedule] = []
+        min_credits = self.config.min_credits
+        max_credits = self.config.max_credits
+        cap = BusinessConstants.MAX_SCHEDULE_RESULTS
+        n = len(candidates)
+
+        # suffix_credits[i] = candidates[i:]의 학점 합 (i가 커질수록 감소)
+        suffix_credits = [0] * (n + 1)
+        for i in range(n - 1, -1, -1):
+            suffix_credits[i] = suffix_credits[i + 1] + candidates[i].credits
+
+        found: List[Schedule] = []
+        node_count = 0
+        stopped = False
 
         def backtrack(current: Schedule, idx: int):
-            nonlocal found_pure_count
-            if found_pure_count >= limit:
+            nonlocal node_count, stopped
+            node_count += 1
+            # 1024 노드마다 제한 시간 확인
+            if node_count & 0x3FF == 0 and time.time() > deadline:
+                logger.warning("제한 시간 초과 - 탐색 조기 종료")
+                print(f"\n⏱ 제한 시간({AlgoConfig.MAX_TOTAL_TIME_SECONDS}초) 초과 - 지금까지 찾은 결과만 사용합니다.")
+                stopped = True
+            if stopped:
                 return
 
-            if current.total_credits > self.config.max_credits:
-                return
-            
-            # === 조기 가지치기 (Early Pruning) ===
-            # 현재 학점 + 남은 모든 강의의 최대 학점으로도 min_credits 못 채우면 즉시 중단
-            # [Fix] allow_fill 모드일 때는 가지치기 하지 않음 (왜냐하면 Random Fill로 채울 수 있으니까!)
-            if not allow_fill and current.total_credits < self.config.min_credits:
-                remaining_max_credits = sum(c.credits for c in candidates[idx:])
-                if current.total_credits + remaining_max_credits < self.config.min_credits:
-                    # 더 이상 탐색해도 목표 학점 도달 불가 → 가지치기
-                    return
-
-            extended = False
-
-            for i in range(idx, len(candidates)):
-                if found_pure_count >= limit:
-                    break
-                    
-                course = candidates[i]
-                
-                # 학점 초과시 건너뛰기
-                if current.total_credits + course.credits > self.config.max_credits:
-                    continue
-                # [최적화] 중복 검사 제거: candidates는 이미 _is_excluded_time을 통과한 상태임
-                
-                if current.add_course(course):
-                    extended = True
-                    backtrack(current, i + 1)
-                    current.remove_course(course)
-
-            if not extended:
-                _process_leaf(current)
-
-        def _process_leaf(current: Schedule):
-            nonlocal found_pure_count
-            
-            # 1. 이미 완성된 경우 (Pure Schedule)
-            if self.config.min_credits <= current.total_credits <= self.config.max_credits:
-                # 중복 체크 (리팩토링: get_content_hash 사용)
+            credits = current.total_credits
+            if credits >= min_credits:
                 sig = current.get_content_hash()
-                if sig in found_signatures:
-                    return  # 이미 찾은 조합
-                
-                found_signatures.add(sig)
-                self.results.append(current.copy())
-                found_pure_count += 1
-                
-            # 2. 학점이 모자란 경우 (Filled Schedule) -> allow_fill일 때만 시도
-            elif allow_fill and current.total_credits < self.config.min_credits:
-                # Buffer가 꽉 찼으면 더 이상 채우기 연산 하지 않음 (최적화)
-                if len(filled_buffer) >= limit:
-                    return
-
-                final_schedule = self._try_random_fill(current)
-                
-                # 채운 결과가 조건 만족하면 Buffer에 저장
-                if self.config.min_credits <= final_schedule.total_credits <= self.config.max_credits:
-                    # Buffer에 추가 (나중에 채택 시 중복 체크)
-                    filled_buffer.append(final_schedule)
-
-        # 실행
-        backtrack(base_schedule.copy(), 0)
-        
-        # Pure로 다 못 채웠으면 Filled에서 충당 (단, allow_fill 모드일 때만)
-        added_filled_count = 0
-        spaces_left = limit - found_pure_count
-        
-        if allow_fill and spaces_left > 0 and filled_buffer:
-            random.shuffle(filled_buffer)
-            for s in filled_buffer:
-                if added_filled_count >= spaces_left:
-                    break
-                
-                # 리팩토링: get_content_hash 사용
-                sig = s.get_content_hash()
                 if sig not in found_signatures:
                     found_signatures.add(sig)
-                    self.results.append(s)
-                    added_filled_count += 1
-                
-        return found_pure_count + added_filled_count
+                    found.append(current.copy())
+                    if len(found) >= cap:
+                        stopped = True
+                        return
+                    if progress_callback and len(found) % 1000 == 0:
+                        progress_callback(f"시간표 조합 찾는 중... {len(found):,}개 발견")
+
+            for i in range(idx, n):
+                # 남은 후보를 전부 담아도 최소 학점 미달 → 이후 인덱스도 모두 불가능
+                if credits + suffix_credits[i] < min_credits:
+                    break
+                course = candidates[i]
+                if credits + course.credits > max_credits:
+                    continue
+                if current.add_course(course):
+                    backtrack(current, i + 1)
+                    current.remove_course(course)
+                    if stopped:
+                        return
+
+        for req_schedule in required_combinations:
+            # 필수 강의만으로 최대 학점을 넘는 조합은 제외
+            if req_schedule.total_credits > max_credits:
+                continue
+            backtrack(req_schedule.copy(), 0)
+            if stopped:
+                break
+
+        logger.info(f"전수 탐색: 방문 노드 {node_count:,}개, 결과 {len(found):,}개")
+        return found
+
+    def _collect_partial_schedules(self, required_combinations: List[Schedule], candidates: List[Course],
+                                   deadline: float) -> List[Schedule]:
+        """
+        Fill 모드용: 희망 강의를 더 이상 넣을 수 없는(극대) 학점 미달 시간표를 수집
+        """
+        max_credits = self.config.max_credits
+        cap = BusinessConstants.MAX_SCHEDULE_RESULTS
+        n = len(candidates)
+        partials: List[Schedule] = []
+        seen = set()
+        stopped = False
+
+        def fits(current: Schedule, course: Course) -> bool:
+            return (current.total_credits + course.credits <= max_credits
+                    and course.name not in current.course_names
+                    and (current.total_time_mask & course.time_mask) == 0)
+
+        def backtrack(current: Schedule, idx: int):
+            nonlocal stopped
+            if stopped or time.time() > deadline:
+                stopped = True
+                return
+
+            for i in range(idx, n):
+                course = candidates[i]
+                if fits(current, course):
+                    current.add_course(course)
+                    backtrack(current, i + 1)
+                    current.remove_course(course)
+                    if stopped:
+                        return
+
+            # 앞에서 건너뛴 후보까지 포함해 어떤 강의도 더 넣을 수 없을 때만 수집 (중복 방문 없음)
+            if current.total_credits < self.config.min_credits and not any(fits(current, c) for c in candidates):
+                sig = current.get_content_hash()
+                if sig not in seen:
+                    seen.add(sig)
+                    partials.append(current.copy())
+                    if len(partials) >= cap:
+                        stopped = True
+
+        for req_schedule in required_combinations:
+            backtrack(req_schedule.copy(), 0)
+            if stopped:
+                break
+
+        return partials
+
+    def _fill_partial_schedules(self, partials: List[Schedule], found_signatures: set,
+                                progress_callback: Optional[Callable[[str], None]] = None) -> List[Schedule]:
+        """
+        학점 미달 시간표에 '전학년' 강의를 무작위로 채워 넣어 결과 생성
+        (무작위성이 있으므로 새 결과가 거의 나오지 않을 때까지 라운드를 반복)
+        """
+        results: List[Schedule] = []
+        if not partials:
+            return results
+
+        recent_discoveries = deque(maxlen=AlgoConfig.SATURATION_CHECK_WINDOW)
+
+        for round_no in range(1, AlgoConfig.MAX_RESTARTS + 1):
+            random.shuffle(partials)
+            added = 0
+            for base in partials:
+                filled = self._try_random_fill(base)
+                if not (self.config.min_credits <= filled.total_credits <= self.config.max_credits):
+                    continue
+                sig = filled.get_content_hash()
+                if sig in found_signatures:
+                    continue
+                found_signatures.add(sig)
+                results.append(filled)
+                added += 1
+                if len(results) >= AlgoConfig.TARGET_RESULTS:
+                    return results
+
+            if progress_callback and round_no % 10 == 0:
+                progress_callback(f"시간표 조합 찾는 중... {len(results):,}개 발견")
+
+            # 발견 속도 기반 조기 종료 (Saturation Check)
+            recent_discoveries.append(added)
+            if (len(recent_discoveries) == recent_discoveries.maxlen
+                    and sum(recent_discoveries) < AlgoConfig.SATURATION_THRESHOLD):
+                logger.info(f"포화 감지: 최근 {AlgoConfig.SATURATION_CHECK_WINDOW}라운드 중 "
+                            f"{sum(recent_discoveries)}개만 발견")
+                break
+
+        return results
 
     def _try_random_fill(self, schedule: Schedule) -> Schedule:
         """
@@ -418,20 +417,16 @@ class ScheduleGenerator:
         for course in self.random_fill_candidates:
             # 학점 초과 체크
             if new_schedule.total_credits + course.credits > self.config.max_credits:
-                # logger.debug(f"Skip {course.name}: Credit Overflow ({new_schedule.total_credits} + {course.credits} > {self.config.max_credits})")
                 continue
-            
+
             # 요일/시간 제외 체크 (비트마스크 최적화)
             if self._is_excluded_time(course):
-                # logger.debug(f"Skip {course.name}: Excluded Time")
                 continue
 
             # 충돌 체크 및 추가
             # add_course 내부에서 충돌/중복 체크 함
             if new_schedule.add_course(course):
                 filled_any = True
-            # else:
-                # logger.debug(f"Skip {course.name}: Conflict or Duplicate")
             
             # 꽉 찼으면 중단
             if new_schedule.total_credits >= self.config.max_credits:
@@ -439,7 +434,6 @@ class ScheduleGenerator:
         
         if filled_any:
             new_schedule.has_random_filled = True
-            # logger.info(f"Random Fill Result: {new_schedule.total_credits} credits (Added {new_schedule.total_credits - schedule.total_credits})")
                 
         return new_schedule
 
@@ -468,7 +462,6 @@ class ScheduleGenerator:
         mask = 0
         # 1. 특정 시간대 제외
         if self.config.excluded_time_slots:
-            from ..core.models import time_str_to_index
             for (day, start, end) in self.config.excluded_time_slots:
                 start_idx = time_str_to_index(day, start)
                 end_idx = time_str_to_index(day, end)
@@ -478,7 +471,6 @@ class ScheduleGenerator:
         # 2. 요일 전체 제외
         if self.config.excluded_days:
             # 하루 = 288 slots (5분 단위)
-            from ..core.models import DAYS_MAP
             for day in self.config.excluded_days:
                 day_idx = DAYS_MAP.get(day, 0)
                 start_idx = day_idx * 288
@@ -492,7 +484,3 @@ class ScheduleGenerator:
         """제외 시간 체크 (비트마스크 최적화)"""
         # 비트마스크 연산 (O(1))
         return (course.time_mask & self.excluded_mask) > 0
-
-    def _time_overlaps(self, start1: str, end1: str, start2: str, end2: str) -> bool:
-        def to_min(t): h, m = map(int, t.split(':')); return h*60 + m
-        return to_min(start1) < to_min(end2) and to_min(start2) < to_min(end1)

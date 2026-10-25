@@ -3,7 +3,6 @@
 """
 from dataclasses import dataclass
 from typing import List
-from copy import deepcopy
 
 # bitmask constants
 DAYS_MAP = {'월': 0, '화': 1, '수': 2, '목': 3, '금': 4, '토': 5, '일': 6}
@@ -80,15 +79,6 @@ class Course:
         """다른 강의와 시간 충돌이 있는지 확인 (비트마스크 사용)"""
         return (self.time_mask & other.time_mask) > 0
     
-    # 레거시 메서드 (혹시 모를 호환성 위해 남겨둠, 필요 없으면 제거 가능)
-    def has_conflict_legacy(self, other: 'Course') -> bool:
-        """다른 강의와 시간 충돌이 있는지 확인"""
-        for slot1 in self.time_slots:
-            for slot2 in other.time_slots:
-                if slot1.overlaps(slot2):
-                    return True
-        return False
-    
     @property
     def time_summary(self) -> str:
         """시간 정보를 문자열로 반환"""
@@ -137,14 +127,20 @@ class Schedule:
     
     def remove_course(self, course: Course):
         """강의를 제거"""
-        if course in self.courses:
+        # 백트래킹은 항상 마지막에 추가한 강의를 제거하므로 pop()으로 O(1) 처리
+        # (Course.__eq__ 비교가 수천만 번 호출되던 병목 제거)
+        if self.courses and self.courses[-1] is course:
+            self.courses.pop()
+        elif course in self.courses:
             self.courses.remove(course)
-            self.total_credits -= course.credits
-            self.course_names.discard(course.name)
-            # 비트마스크 제거 (XOR 또는 AND NOT)
-            # 주의: 겹치는 강의가 절대 없다는 가정하에 XOR가 빠름
-            # 하지만 안전하게 AND NOT 사용: mask & (~course_mask)
-            self.total_time_mask &= ~course.time_mask
+        else:
+            return
+        self.total_credits -= course.credits
+        self.course_names.discard(course.name)
+        # 비트마스크 제거 (XOR 또는 AND NOT)
+        # 주의: 겹치는 강의가 절대 없다는 가정하에 XOR가 빠름
+        # 하지만 안전하게 AND NOT 사용: mask & (~course_mask)
+        self.total_time_mask &= ~course.time_mask
     
     def copy(self) -> 'Schedule':
         """스케줄 복사본 생성"""

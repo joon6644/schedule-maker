@@ -77,20 +77,20 @@ class AppController:
         return True
 
     def _resolve_csv_path(self):
-        preferred = os.path.join(self.resource_path, 'data', 'csv', 'mju_2026_2.csv')
-        if os.path.exists(preferred):
-            return preferred
-
+        """가장 최근 학기의 CSV (파일명 mju_YYYY_N.csv 기준) — 새 학기 CSV를 넣기만 하면 그 학기로 열림"""
         candidates = []
         candidates.extend(glob.glob(os.path.join(self.resource_path, 'data', 'csv', 'mju_*.csv')))
         candidates.extend(glob.glob(os.path.join(self.resource_path, 'data', 'mju_*.csv')))
         candidates.extend(glob.glob(os.path.join(self.resource_path, 'mju_*.csv')))
 
-        if candidates:
-            candidates.sort(key=lambda path: os.path.getmtime(path), reverse=True)
-            return candidates[0]
+        def term_order(path):
+            match = re.match(r"mju_(\d{4})_(\d)\.csv$", os.path.basename(path))
+            return (int(match.group(1)), int(match.group(2))) if match else (0, 0)
 
-        return preferred
+        if candidates:
+            return max(candidates, key=lambda path: (term_order(path), os.path.getmtime(path)))
+
+        return os.path.join(self.resource_path, 'data', 'csv', 'mju_*.csv')
 
     def _extract_term_key(self, csv_path: str):
         filename = os.path.basename(csv_path)

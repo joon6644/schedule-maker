@@ -3,15 +3,14 @@ Search Interface
 Replaces SearchTab with modern Fluent UI components.
 """
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QHeaderView, QTableWidgetItem, QMenu,
+    QWidget, QVBoxLayout, QHBoxLayout, QHeaderView, QTableWidgetItem,
     QAbstractItemView
 )
 
-from PySide6.QtCore import Qt, Signal, Slot
+from PySide6.QtCore import Qt
 from qfluentwidgets import (
     SearchLineEdit, CheckBox, PrimaryPushButton, TableWidget,
-    FluentIcon as FIF, RoundMenu, Action, BodyLabel, TitleLabel,
-    SubtitleLabel, StrongBodyLabel, PushButton, SegmentedWidget
+    FluentIcon as FIF, BodyLabel, TitleLabel, PushButton, SegmentedWidget
 )
 
 from ..viewmodels.search_viewmodel import SearchViewModel

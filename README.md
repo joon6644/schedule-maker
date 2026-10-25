@@ -7,7 +7,32 @@
 **Schedule Maker**는 명지대학교 학생들을 위한 지능형 시간표 생성 자동화 도구입니다. 
 사용자가 원하는 필수/희망 강의와 제약 조건(공강 요일, 최소/최대 학점 등)을 입력하면, 백트래킹 알고리즘을 사용하여 가능한 모든 시간표 조합을 생성하고 시각화해줍니다.
 
-## ✨ 주요 기능
+## 🌐 웹 버전 (`web/`)
+
+설치 없이 브라우저(PC·모바일)에서 쓰는 버전입니다. 서버 없이 정적 파일로 동작하고, 시간표 계산은 브라우저의 Web Worker에서 실행됩니다.
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+- 강의 검색 → 필수/희망 담기 → 학점·공강·피하고 싶은 시간 설정 → 시간표가 바로 계산됨
+- 시간표의 강의를 고정해 후보 좁히기(다시 누르면 해제), 고정한 강의는 다른 분반으로 바꾸기, ← → 키로 넘기기
+- 마음에 드는 시간표에 이름을 붙여 저장 → '저장' 탭에서 열기·이름 바꾸기·삭제 (조건이 바뀌어도 그대로 남음)
+- 설정 JSON 불러오기/내보내기 (데스크톱 앱 설정 파일과 호환)
+- 라이트/다크 테마, 디자인 토큰은 Figma 변수와 연결 → [docs/figma-workflow.md](docs/figma-workflow.md)
+
+### 새 학기 강의 추가
+
+1. 학교에서 받은 강의 CSV를 `data/csv/mju_YYYY_N.csv` 이름으로 넣습니다 (예: `mju_2027_1.csv`).
+2. 웹 데이터 변환: `cd web && npm run data` (= `python tools/export_courses.py`)
+3. `npm run build` 후 배포합니다.
+
+- **웹:** 최신 학기만 다룹니다. 변환하면 지난 학기 JSON은 지워지고, 사용자가 다음에 접속하면 새 학기로 넘어가면서 알림이 한 번 뜹니다 (지난 학기에 담은 강의는 정리됨).
+- **데스크톱 앱:** 파일 이름 기준으로 가장 최근 학기를 엽니다.
+
+## ✨ 주요 기능 (데스크톱 앱)
 
 - **🖥 현대적인 GUI 환경**: `PySide6`와 `Fluent UI`를 적용하여 깔끔하고 직관적인 사용자 경험을 제공합니다.
 - **🔍 강력한 강의 검색**: 강의명, 교수명으로 빠르게 검색하고 클릭 한 번으로 목록에 추가할 수 있습니다.
@@ -84,7 +109,7 @@ schedule_maker/
 
 - **Language**: Python 3.10+
 - **GUI Framework**: PySide6 (Qt for Python), QFluentWidgets
-- **Algorithm**: Randomized Backtracking with Heuristics
+- **Algorithm**: Exhaustive Backtracking (Bitmask + Pruning)
 - **Testing**: Pytest
 - **Data**: Pandas (CSV Parsing)
 

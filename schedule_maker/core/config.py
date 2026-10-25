@@ -308,7 +308,7 @@ def load_config_interactive() -> ScheduleConfig:
     print("예: 금요일에 강의를 듣고 싶지 않으면 '금' 입력")
     print("-" * 50)
     
-    available_days = ['월', '화', '수', '목', '금']
+    available_days = ['월', '화', '수', '목', '금', '토']
     print(f"사용 가능한 요일: {', '.join(available_days)}")
     
     exclude_input = input("\n제외할 요일 (쉼표로 구분, 예: 금,토): ").strip()

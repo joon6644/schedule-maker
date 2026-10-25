@@ -151,8 +151,8 @@ schedule_maker_v2.2/
 
 ## 5. 핵심 알고리즘 (Algorithm)
 
-### 5.1 시간표 생성 알고리즘 (Randomized Backtracking with Restarts)
-`schedule_maker/services/scheduler.py`에 구현된 이 시스템은 단순한 DFS가 아닌, **무작위 재시작(Randomized Restart)** 전략을 결합한 지능형 백트래킹 알고리즘입니다.
+### 5.1 시간표 생성 알고리즘 (Exhaustive Backtracking)
+`schedule_maker/services/scheduler.py`는 **한 번의 DFS**로 조건을 만족하는 모든 시간표 조합을 정확히 한 번씩 찾습니다. (이전의 셔플 + 재시작 방식과 결과 집합은 동일하며, 실제 데이터 기준 약 13초 → 0.05초)
 
 1.  **Phase 1: 필수 강의 조합 (Constraint Satisfaction)**
     *   사용자가 지정한 필수 강의들의 가능한 모든 조합을 먼저 생성합니다.
@@ -161,12 +161,15 @@ schedule_maker_v2.2/
 2.  **Phase 2: 휴리스틱 정렬 (Heuristics)**
     *   희망 강의 목록을 **Bin Packing** (큰 학점 우선) 및 **MRV** (시간 제약 많은 강의 우선) 순으로 정렬하여 탐색 효율을 극대화합니다.
 
-3.  **Phase 3: 무작위 탐색 (Restart Engine)**
-    *   제한된 시간과 깊이 내에서 DFS를 반복 수행하며, 매 반복마다 희망 강의 탐색 순서를 셔플하여 다양한 해를 찾습니다.
-    *   **조기 종료**: 발견 속도가 현저히 떨어지면(Saturation), 목표 개수를 채우지 못했더라도 탐색을 멈춥니다.
+3.  **Phase 3: 전수 탐색 (Exhaustive DFS)**
+    *   각 필수 조합에 희망 강의 부분집합을 더해 가며, 학점 범위를 만족하는 모든 시간표를 수집합니다 (content hash로 중복 제거).
+    *   **가지치기**: 최대 학점 초과 강의는 건너뛰고, 현재 학점 + 남은 후보 학점 합(suffix sum)으로도 최소 학점에 못 미치면 즉시 중단합니다.
+    *   결과가 `TARGET_RESULTS`(10,000)개를 넘으면 무작위 표본을 반환하고, 순서는 섞어서 보여줍니다.
+    *   제한 시간(`MAX_TOTAL_TIME_SECONDS`)을 넘기면 그때까지 찾은 결과만 반환합니다.
 
 4.  **Phase 4: 무작위 채우기 (Random Fill)**
-    *   순수 조합만으로 최소 학점을 채우지 못할 경우, '전학년' 대상 강의(교양 등)로 빈 시간을 자동으로 채워 넣는 기능입니다.
+    *   순수 조합이 하나도 없을 때만 동작합니다. 희망 강의를 더 넣을 수 없는 학점 미달 시간표를 모은 뒤, '전학년' 대상 강의(교양 등)로 빈 시간을 무작위로 채웁니다.
+    *   새 결과가 거의 나오지 않으면(Saturation) 라운드 반복을 멈춥니다.
 
 ---
 
