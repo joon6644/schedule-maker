@@ -132,3 +132,20 @@ def test_required_over_max_credits_excluded(mock_courses, basic_config):
     results = generator.generate_all_schedules()
 
     assert all(s.total_credits <= 5 for s in results)
+
+
+def test_online_placeholder_slots_do_not_conflict(basic_config):
+    # 00:00~03:00 은 온라인 강의 자리표시 → 같은 요일이어도 겹치지 않고, 공강 요일에도 걸리지 않음
+    courses = [
+        Course('201', 'Online A', 3, 'Prof. X', [TimeSlot('월', '00:00', '03:00')]),
+        Course('202', 'Online B', 3, 'Prof. Y', [TimeSlot('월', '00:00', '03:00')]),
+        Course('203', 'Math', 3, 'Prof. A', [TimeSlot('화', '09:00', '10:30')]),
+    ]
+    basic_config.min_credits = 9
+    basic_config.excluded_days = ['월']
+    basic_config.required_filters = [CourseFilter(name='Online A'), CourseFilter(name='Online B'), CourseFilter(name='Math')]
+
+    results = ScheduleGenerator(courses, basic_config).generate_all_schedules()
+
+    assert len(results) == 1
+    assert {c.course_id for c in results[0].courses} == {'201', '202', '203'}

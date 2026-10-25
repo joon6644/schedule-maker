@@ -22,9 +22,16 @@ export function rangeMask(startIdx: number, endIdx: number): bigint {
   return ((1n << BigInt(endIdx - startIdx)) - 1n) << BigInt(startIdx)
 }
 
+/** 06시 전에 시작하는 시간(00:00~03:00 등)은 온라인 강의의 자리표시 (Python models.is_placeholder_slot) */
+export const isPlaceholderSlot = (s: { start: string }) => toMinutes(s.start) < 6 * 60
+
+/** 강의 시간 비트마스크 — 자리표시 시간은 충돌·제외 시간 검사에서 무시 */
 export function slotsMask(slots: { day: Day; start: string; end: string }[]): bigint {
   let mask = 0n
-  for (const s of slots) mask |= rangeMask(timeToIndex(s.day, s.start), timeToIndex(s.day, s.end))
+  for (const s of slots) {
+    if (isPlaceholderSlot(s)) continue
+    mask |= rangeMask(timeToIndex(s.day, s.start), timeToIndex(s.day, s.end))
+  }
   return mask
 }
 

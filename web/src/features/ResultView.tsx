@@ -1,10 +1,11 @@
 import { AlertCircle, Bookmark, CalendarRange, ChevronLeft, ChevronRight, Loader2, Pin, Plus, Repeat2, Sparkles } from 'lucide-react'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode, type TouchEvent } from 'react'
 import { Badge, Button, cx, EmptyState, IconButton, NameForm, nextName, Popover, type ToastData } from '../components/ui'
 import { timeSummary } from '../engine/course'
 import type { CourseData, GenerationOutput, ScheduleConfig, ScheduleResult } from '../engine/types'
 import { assignColors, courseColorVars } from '../lib/courseColors'
 import type { GenerationState } from '../lib/data'
+import { countLabel, formatCount } from '../lib/format'
 import { useConfig, useSaved, useStore, type SavedSchedule } from '../lib/store'
 import { ANY, filterByPins, matchesPins, scheduleKey, type Pins, type ViewerState } from '../lib/viewer'
 import { Timetable, type PreviewItem } from './Timetable'
@@ -154,6 +155,7 @@ function Results({ output, running, courses, viewer, onViewerChange, notify, pre
     onViewerChange({ pins, key: scheduleKey(filtered[(index + delta + filtered.length) % filtered.length]) })
   }
   useArrowKeys(go)
+  const swipe = useSwipe(go)
 
   /** 고정 조건을 바꾸되, 지금 보던 시간표가 여전히 맞으면 그대로 머묾 */
   const applyPins = (next: Pins, failMessage: string) => {
@@ -225,7 +227,7 @@ function Results({ output, running, courses, viewer, onViewerChange, notify, pre
                 <Loader2 size={12} className="animate-spin" /> 다시 계산 중
               </>
             ) : (
-              <>가능한 조합 {schedules.length.toLocaleString()}개</>
+              <>가능한 조합 {countLabel(schedules.length)}</>
             )
           }
           stats={current && { credits: current.totalCredits, count: currentCourses.length, config }}
@@ -241,7 +243,7 @@ function Results({ output, running, courses, viewer, onViewerChange, notify, pre
 
         {/* 시간표 위에는 아무것도 끼워 넣지 않음 → 고정·재계산해도 시간표가 움직이지 않게 */}
         {current || emptyGrid ? (
-          <div className={cx('transition-opacity', running && 'opacity-50')}>
+          <div className={cx('touch-pan-y transition-opacity', running && 'opacity-50')} {...(current ? swipe : {})}>
             {/* 조합이 0개여도 PC 에서는 빈 틀 유지 (미리보기용) */}
             <Timetable
               courses={currentCourses}
@@ -366,6 +368,7 @@ function SavedResult({ entry, saved, courses, preview, onOpen }: {
   const index = saved.findIndex((s) => s.id === entry.id)
   const go = (delta: number) => onOpen(saved[(index + delta + saved.length) % saved.length].id)
   useArrowKeys(go)
+  const swipe = useSwipe(go)
 
   return (
     <div className="grid gap-x-10 gap-y-8 xl:grid-cols-[minmax(0,1fr)_280px]">
@@ -383,13 +386,15 @@ function SavedResult({ entry, saved, courses, preview, onOpen }: {
           stats={{ credits: entry.totalCredits, count: list.length, config }}
           controls={<Pager index={index} total={saved.length} go={go} />}
         />
-        <Timetable
-          courses={list}
-          colors={colors}
-          avoid={showAvoid ? { days: config.excludedDays, times: config.excludedTimes } : undefined}
-          preview={preview ?? undefined}
-          pinned={NO_PINS}
-        />
+        <div className="touch-pan-y" {...swipe}>
+          <Timetable
+            courses={list}
+            colors={colors}
+            avoid={showAvoid ? { days: config.excludedDays, times: config.excludedTimes } : undefined}
+            preview={preview ?? undefined}
+            pinned={NO_PINS}
+          />
+        </div>
       </div>
       <aside className="xl:pt-[72px]">
         <p className="mb-1 flex h-7 items-center text-[13px] font-medium text-fg-muted">이 시간표의 강의</p>
@@ -447,7 +452,7 @@ function Pager({ index, total, go }: { index: number; total: number; go: (delta:
       </IconButton>
       <span className="min-w-20 text-center text-[14px] font-semibold tabular-nums">
         {(index + 1).toLocaleString()}
-        <span className="font-normal text-fg-muted"> / {total.toLocaleString()}</span>
+        <span className="font-normal text-fg-muted"> / {formatCount(total)}</span>
       </span>
       <IconButton label="다음 시간표 (→)" size="sm" className="size-8" onClick={() => go(1)}>
         <ChevronRight size={18} strokeWidth={2.2} />
@@ -514,6 +519,27 @@ function CourseInfo({ course, color, badge }: { course: CourseData; color?: numb
 function useShownColors(list: CourseData[]) {
   const names = [...new Set(list.map((c) => c.name))].join('|')
   return useMemo(() => assignColors(names ? names.split('|') : []), [names])
+}
+
+/** 터치: 시간표를 옆으로 밀면 다음(←)/이전(→) 시간표. 세로 스크롤은 그대로 */
+function useSwipe(go: (delta: number) => void) {
+  const start = useRef<{ x: number; y: number } | null>(null)
+  return {
+    onTouchStart: (e: TouchEvent) => {
+      const t = e.touches[0]
+      start.current = e.touches.length === 1 ? { x: t.clientX, y: t.clientY } : null
+    },
+    onTouchEnd: (e: TouchEvent) => {
+      const from = start.current
+      start.current = null
+      if (!from) return
+      const t = e.changedTouches[0]
+      const dx = t.clientX - from.x
+      const dy = t.clientY - from.y
+      // 충분히 길고 가로가 뚜렷할 때만 (대각선·세로 스크롤은 무시)
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) go(dx < 0 ? 1 : -1)
+    },
+  }
 }
 
 /** ← → 키로 넘기기 (입력 중에는 무시) */

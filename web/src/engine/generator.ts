@@ -12,12 +12,11 @@ import {
   type CourseFilter,
   type GenerationOutput,
   type ScheduleConfig,
-  type ScheduleResult,
-} from './types'
+  type ScheduleResult, MAX_RESULTS } from './types'
 
 export const ALGO = {
   /** 반환할 최대 시간표 개수 (초과 시 무작위 표본) */
-  TARGET_RESULTS: 10000,
+  TARGET_RESULTS: MAX_RESULTS,
   /** 전수 탐색에서 수집할 최대 개수 */
   MAX_ENUMERATED: 100000,
   /** 전수 탐색 제한 시간 */

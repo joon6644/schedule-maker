@@ -10,6 +10,7 @@ import type { PreviewItem } from './features/Timetable'
 import { SavedPanel } from './features/SavedPanel'
 import { SearchPanel } from './features/SearchPanel'
 import { useCourses, useGeneration, useTerms } from './lib/data'
+import { countLabel } from './lib/format'
 import { useConfig, useSaved, useStore, type ThemePref } from './lib/store'
 import { describeChange, EMPTY_VIEWER, reconcileViewer, scheduleKey, type ViewerState } from './lib/viewer'
 import type { GenerationOutput, ScheduleConfig } from './engine/types'
@@ -86,7 +87,7 @@ export default function App() {
               count === 0
                 ? `${what} → 조합 없음`
                 : // 담기·빼기·옮기기는 무엇이 바뀌었는지 앞에 붙임
-                  `${isListChange ? `${what} · ` : ''}조합 ${prev.count.toLocaleString()} → ${count.toLocaleString()}개`,
+                  `${isListChange ? `${what} · ` : ''}조합 ${countLabel(prev.count)} → ${countLabel(count)}`,
               lostView && count > 0 && '보던 시간표 바뀜',
               dropped > 0 && `고정 ${dropped}개 풀림`,
             ]
@@ -120,6 +121,7 @@ export default function App() {
 
   /** 강의 검색에서 펼친 과목·분반을 시간표에 흐릿하게 미리보기 */
   const [preview, setPreview] = useState<PreviewItem[] | null>(null)
+  const [barCompact, setBarCompact] = useCollapseOnScroll(!isDesktop, tab)
   useEffect(() => {
     if (tab !== 'search') setPreview(null)
   }, [tab])
@@ -144,21 +146,23 @@ export default function App() {
   ]
   const sidebarTab = tab === 'result' ? 'search' : tab
 
+  // PC 사이드바는 패널마다 자체 스크롤, 모바일은 화면 전체가 스크롤 (목록이 떠 있는 바 뒤까지 이어지게)
+  const scrollBox = isDesktop ? 'h-full overflow-y-auto' : undefined
   const panel = (t: Exclude<Tab, 'result'>) =>
     !courses ? (
       <Loading />
     ) : t === 'search' ? (
-      <SearchPanel courses={courses} onPreview={setPreview} />
+      <SearchPanel courses={courses} onPreview={setPreview} pageScroll={!isDesktop} />
     ) : t === 'basket' ? (
-      <div className="h-full overflow-y-auto">
+      <div className={scrollBox}>
         <BasketPanel courses={courses} onBrowse={() => setTab('search')} />
       </div>
     ) : t === 'saved' ? (
-      <div className="h-full overflow-y-auto">
+      <div className={scrollBox}>
         <SavedPanel courses={courses} activeId={savedView} onOpen={openSaved} notify={notify} />
       </div>
     ) : (
-      <div className="h-full overflow-y-auto">
+      <div className={scrollBox}>
         <ConstraintsPanel />
       </div>
     )
@@ -217,6 +221,10 @@ export default function App() {
   }
 
   /* 모바일 (iOS 앱 구조): 반투명 내비게이션 바 + 떠 있는 캡슐 탭 바 */
+  const openTab = (t: Tab) => {
+    setBarCompact(false)
+    setTab(t)
+  }
   return (
     <div className={cx('flex h-full flex-col', tab === 'result' ? 'bg-bg' : 'bg-surface')}>
       <header className="material sticky top-0 z-30 flex shrink-0 items-center gap-2.5 px-4" style={{ height: 'var(--layout-header-height)' }}>
@@ -229,16 +237,29 @@ export default function App() {
       <div className={cx('min-h-0 flex-1 overflow-y-auto pt-2', tab === 'result' ? 'pb-28' : 'pb-44')}>
         {tab === 'result' ? <div className="px-4">{results}</div> : panel(tab)}
       </div>
-      {tab !== 'result' && <ResultSummary generation={generation} credits={currentCredits} variant="floating" onOpen={() => setTab('result')} />}
-      <Toast toast={toast} onClose={() => setToast(null)} className={tab === 'result' ? 'bottom-24' : 'bottom-[152px]'} />
-      <nav className="material fixed inset-x-4 bottom-4 z-30 grid h-16 grid-cols-5 rounded-full p-1 shadow-lg">
-        <NavItem active={tab === 'search'} onClick={() => setTab('search')} icon={<Search size={20} />} label="검색" />
-        <NavItem active={tab === 'basket'} onClick={() => setTab('basket')} icon={<BookOpen size={20} />} label="담은 강의" badge={basketCount || undefined} />
-        <NavItem active={tab === 'constraints'} onClick={() => setTab('constraints')} icon={<SlidersHorizontal size={20} />} label="조건" />
-        <NavItem active={tab === 'saved'} onClick={() => setTab('saved')} icon={<Bookmark size={20} />} label="저장" badge={savedCount || undefined} />
+      {tab !== 'result' && (
+        <ResultSummary generation={generation} credits={currentCredits} variant="floating" compact={barCompact} onOpen={() => openTab('result')} />
+      )}
+      <Toast
+        toast={toast}
+        onClose={() => setToast(null)}
+        className={barCompact ? 'bottom-[88px]' : tab === 'result' ? 'bottom-24' : 'bottom-[152px]'}
+      />
+      {/* 아래로 스크롤하면 iOS 처럼 지금 탭 아이콘만 남는 작은 캡슐로 (누르거나 위로 스크롤하면 펼침) */}
+      <nav
+        className={cx(
+          'material fixed bottom-4 left-4 z-30 grid rounded-full p-1 shadow-lg transition-[right,height] duration-300 ease-out',
+          barCompact ? 'right-[calc(100%-4.5rem)] h-14 grid-cols-1' : 'right-4 h-16 grid-cols-5',
+        )}
+      >
+        <NavItem compact={barCompact} active={tab === 'search'} onClick={() => openTab('search')} icon={<Search size={20} />} label="검색" />
+        <NavItem compact={barCompact} active={tab === 'basket'} onClick={() => openTab('basket')} icon={<BookOpen size={20} />} label="담은 강의" badge={basketCount || undefined} />
+        <NavItem compact={barCompact} active={tab === 'constraints'} onClick={() => openTab('constraints')} icon={<SlidersHorizontal size={20} />} label="조건" />
+        <NavItem compact={barCompact} active={tab === 'saved'} onClick={() => openTab('saved')} icon={<Bookmark size={20} />} label="저장" badge={savedCount || undefined} />
         <NavItem
+          compact={barCompact}
           active={tab === 'result'}
-          onClick={() => setTab('result')}
+          onClick={() => openTab('result')}
           icon={generation.status === 'running' ? <Loader2 size={20} className="animate-spin" /> : <CalendarRange size={20} />}
           label="시간표"
           badge={resultCount ?? undefined}
@@ -264,7 +285,16 @@ function Count({ n }: { n: number }) {
   return <span className="text-[12px] font-semibold text-accent-fg tabular-nums">{n}</span>
 }
 
-function NavItem({ active, onClick, icon, label, badge }: { active: boolean; onClick: () => void; icon: ReactNode; label: string; badge?: number }) {
+function NavItem({ active, onClick, icon, label, badge, compact }: {
+  active: boolean
+  onClick: () => void
+  icon: ReactNode
+  label: string
+  badge?: number
+  /** 접힌 탭 바: 지금 탭만 아이콘으로 */
+  compact?: boolean
+}) {
+  if (compact && !active) return null
   return (
     <button
       type="button"
@@ -276,8 +306,8 @@ function NavItem({ active, onClick, icon, label, badge }: { active: boolean; onC
       )}
     >
       {icon}
-      {label}
-      {badge !== undefined && (
+      {!compact && label}
+      {!compact && badge !== undefined && (
         <span className="absolute top-1.5 left-1/2 ml-2.5 rounded-full bg-accent px-1.5 text-[10px] leading-4 font-semibold text-fg-on-accent tabular-nums">
           {badge > 999 ? '999+' : badge}
         </span>
@@ -304,6 +334,30 @@ function ThemeButton() {
       {icon}
     </IconButton>
   )
+}
+
+/** 모바일 탭 바 접기: 아래로 스크롤하면 접고, 위로 스크롤하거나 맨 위에 오면 펼침 (탭을 바꾸면 펼침) */
+function useCollapseOnScroll(enabled: boolean, resetKey: unknown) {
+  const [compact, setCompact] = useState(false)
+  useEffect(() => setCompact(false), [resetKey])
+  useEffect(() => {
+    if (!enabled) return
+    // 패널마다 스크롤 영역이 달라서 문서 전체의 scroll 을 캡처 단계에서 받음
+    const last = new WeakMap<EventTarget, number>()
+    const onScroll = (e: Event) => {
+      const el = e.target instanceof Element ? e.target : document.scrollingElement
+      if (!el) return
+      const y = el.scrollTop
+      const prev = last.get(el) ?? y
+      last.set(el, y)
+      if (y < 24) setCompact(false)
+      else if (y - prev > 6) setCompact(true)
+      else if (prev - y > 6) setCompact(false)
+    }
+    document.addEventListener('scroll', onScroll, { capture: true, passive: true })
+    return () => document.removeEventListener('scroll', onScroll, { capture: true })
+  }, [enabled])
+  return [compact, setCompact] as const
 }
 
 function useMediaQuery(query: string) {

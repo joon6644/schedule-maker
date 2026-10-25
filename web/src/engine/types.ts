@@ -3,6 +3,9 @@
 export type Day = '월' | '화' | '수' | '목' | '금' | '토' | '일'
 
 export const WEEKDAYS: Day[] = ['월', '화', '수', '목', '금']
+/** 한 번에 찾는 조합 수 상한 — 여기에 닿으면 화면에 '10,000개+' 로 표시 */
+export const MAX_RESULTS = 10000
+
 /** 수업이 있는 요일 (토요반 포함) — 공강·피하고 싶은 시간 선택용 */
 export const CLASS_DAYS: Day[] = [...WEEKDAYS, '토']
 

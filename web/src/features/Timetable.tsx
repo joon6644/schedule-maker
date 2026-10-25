@@ -1,11 +1,14 @@
 import { Pin } from 'lucide-react'
 import { useMemo } from 'react'
 import { cx } from '../components/ui'
-import { toMinutes } from '../engine/course'
-import { WEEKDAYS, type CourseData, type Day, type ExcludedTime } from '../engine/types'
+import { isPlaceholderSlot, toMinutes } from '../engine/course'
+import { WEEKDAYS, type CourseData, type Day, type ExcludedTime, type TimeSlot } from '../engine/types'
 import { courseColorVars } from '../lib/courseColors'
 
 const HOUR = 'var(--timetable-hour-height)'
+
+/** 온라인 강의 자리표시 시간(06시 전 시작)은 격자 대신 아래 목록에 */
+const onGrid = (s: TimeSlot) => !isPlaceholderSlot(s)
 
 export interface PreviewItem {
   course: CourseData
@@ -35,7 +38,7 @@ export function Timetable({
   onCourseClick?: (course: CourseData) => void
 }) {
   const { days, startHour, endHour } = useMemo(() => {
-    const slots = [...courses, ...(preview ?? []).map((p) => p.course)].flatMap((c) => c.slots)
+    const slots = [...courses, ...(preview ?? []).map((p) => p.course)].flatMap((c) => c.slots).filter(onGrid)
     const hasSat = slots.some((s) => s.day === '토')
     const minStart = Math.min(9 * 60, ...slots.map((s) => toMinutes(s.start)))
     const maxEnd = Math.max(18 * 60, ...slots.map((s) => toMinutes(s.end)))
@@ -48,6 +51,10 @@ export function Timetable({
 
   const hours = Array.from({ length: endHour - startHour }, (_, i) => startHour + i)
   const previewing = !!preview?.length
+  const offGrid = [
+    ...courses.map((course) => ({ course, color: colors.get(course.name) ?? 1, isPreview: false })),
+    ...(preview ?? []).map((p) => ({ course: p.course, color: p.color, isPreview: true })),
+  ].filter(({ course }) => course.slots.some((s) => !onGrid(s)))
   const clampTime = (time: string) => Math.min(Math.max(toMinutes(time), startHour * 60), endHour * 60)
   const top = (time: string) => `calc(${(clampTime(time) - startHour * 60) / 60} * ${HOUR})`
   const height = (start: string, end: string) => `calc(${(clampTime(end) - clampTime(start)) / 60} * ${HOUR})`
@@ -108,7 +115,7 @@ export function Timetable({
             {/* 미리보기 (강의 블록 위에 겹쳐서, 클릭은 통과) */}
             {preview?.flatMap(({ course, color: colorNo }) =>
               course.slots
-                .filter((s) => s.day === day)
+                .filter((s) => s.day === day && onGrid(s))
                 .map((s) => {
                   // 분반마다 다른 색 → 월·수처럼 나뉜 블록도 같은 분반끼리 같은 색 (검색 목록의 점과 같은 색)
                   const color = courseColorVars(colorNo)
@@ -137,7 +144,7 @@ export function Timetable({
             {/* 강의 블록 */}
             {courses.flatMap((course) =>
               course.slots
-                .filter((s) => s.day === day)
+                .filter((s) => s.day === day && onGrid(s))
                 .map((s) => {
                   const color = courseColorVars(colors.get(course.name) ?? 1)
                   const isPinned = pinned.has(course.name)
@@ -198,6 +205,36 @@ ${isPinned ? '눌러서 고정 해제' : '눌러서 고정'}`}
           </div>
         ))}
       </div>
+
+      {/* 시간표 밖 강의 (온라인 등) — 블록과 같은 색, 눌러서 고정 */}
+      {offGrid.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-1.5" style={{ paddingLeft: 40 }}>
+          {offGrid.map(({ course, color: colorNo, isPreview }) => {
+            const color = courseColorVars(colorNo)
+            const isPinned = !isPreview && pinned.has(course.name)
+            const times = course.slots.filter((s) => !onGrid(s)).map((s) => `${s.day} ${s.start}~${s.end}`).join(', ')
+            return (
+              <button
+                key={`${isPreview ? 'p' : 'c'}-${course.id}`}
+                type="button"
+                disabled={isPreview || !onCourseClick}
+                onClick={() => onCourseClick?.(course)}
+                title={`${course.name} · ${course.professor} · ${times} (시간표 밖)`}
+                className={cx(
+                  'flex h-7 items-center gap-1 rounded-[2px] px-2 text-[12px] font-semibold',
+                  previewing && !isPreview && '[filter:opacity(0.3)_saturate(0.6)]',
+                  isPreview && 'shadow-md ring-1 ring-inset',
+                  isPinned && 'ring-2 ring-inset',
+                )}
+                style={{ background: color.bg, color: color.fg, ['--tw-ring-color' as string]: color.bar }}
+              >
+                {course.name}
+                {isPinned && <Pin size={11} fill="currentColor" />}
+              </button>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

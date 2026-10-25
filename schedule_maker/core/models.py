@@ -16,10 +16,21 @@ def time_str_to_index(day: str, time_str: str) -> int:
     slot_idx = hours * 12 + (minutes // 5)
     return day_idx * 288 + slot_idx
 
+# 06시 전에 시작하는 시간(00:00~03:00 등)은 온라인 강의의 자리표시 → 충돌·제외 시간 검사에서 무시
+PLACEHOLDER_BEFORE_MINUTES = 6 * 60
+
+
+def is_placeholder_slot(slot: 'TimeSlot') -> bool:
+    hours, minutes = map(int, slot.start_time.split(':'))
+    return hours * 60 + minutes < PLACEHOLDER_BEFORE_MINUTES
+
+
 def calculate_time_mask(time_slots: List['TimeSlot']) -> int:
-    """시간 목록을 비트마스크로 변환"""
+    """시간 목록을 비트마스크로 변환 (온라인 자리표시 시간은 제외)"""
     mask = 0
     for slot in time_slots:
+        if is_placeholder_slot(slot):
+            continue
         start_idx = time_str_to_index(slot.day, slot.start_time)
         end_idx = time_str_to_index(slot.day, slot.end_time)
         # end_time은 포함되지 않으므로 range(start, end)

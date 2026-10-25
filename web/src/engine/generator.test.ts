@@ -60,6 +60,20 @@ describe('generateSchedules (mock data)', () => {
     expect(out.schedules.every((s) => s.totalCredits <= 5)).toBe(true)
   })
 
+  it('온라인 자리표시 시간(00:00~03:00)은 겹치지 않고 공강 요일에도 걸리지 않는다', () => {
+    const courses = [
+      make('201', 'Online A', 3, 'Prof. X', [slot('월', '00:00', '03:00')]),
+      make('202', 'Online B', 3, 'Prof. Y', [slot('월', '00:00', '03:00')]),
+      make('203', 'Math', 3, 'Prof. A', [slot('화', '09:00', '10:30')]),
+    ]
+    const out = generateSchedules(
+      courses,
+      basic({ minCredits: 9, excludedDays: ['월'], required: [{ name: 'Online A' }, { name: 'Online B' }, { name: 'Math' }] }),
+    )
+    expect(out.schedules).toHaveLength(1)
+    expect([...out.schedules[0].courseIds].sort()).toEqual(['201', '202', '203'])
+  })
+
   it('필수 강의가 모두 제외 시간과 겹치면 오류', () => {
     expect(() =>
       generateSchedules(mockCourses, basic({ required: [{ name: 'Math' }], excludedTimes: [{ day: '월', start: '09:00', end: '12:00' }] })),

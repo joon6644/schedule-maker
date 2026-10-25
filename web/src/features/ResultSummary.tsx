@@ -1,15 +1,18 @@
 import { AlertCircle, ChevronRight, Loader2 } from 'lucide-react'
 import { cx } from '../components/ui'
+import { isCapped } from '../lib/format'
 import type { GenerationState } from '../lib/data'
 
 /**
  * 실시간 결과 요약 — 설정을 바꾸는 바로 그 화면에서 재계산 결과를 보여줌
  * sidebar: 데스크톱 왼쪽 패널 하단 / floating: 모바일 탭 바 위 (누르면 시간표 탭으로)
  */
-export function ResultSummary({ generation, credits, variant, onOpen }: {
+export function ResultSummary({ generation, credits, variant, compact, onOpen }: {
   generation: GenerationState
   credits: number | null
   variant: 'sidebar' | 'floating'
+  /** 모바일 탭 바가 접혔을 때: 접힌 캡슐 옆 같은 줄로 내려옴 */
+  compact?: boolean
   onOpen?: () => void
 }) {
   const content = (() => {
@@ -36,7 +39,7 @@ export function ResultSummary({ generation, credits, variant, onOpen }: {
             <span key={count} className={cx('animate-pop font-semibold tabular-nums', count === 0 ? 'text-danger' : 'text-fg')}>
               {count.toLocaleString()}
             </span>
-            <span className="text-fg-muted">개</span>
+            <span className="text-fg-muted">개{isCapped(count) && '+'}</span>
             {credits !== null && count > 0 && (
               <>
                 <span className="text-fg-subtle"> · </span>
@@ -64,11 +67,14 @@ export function ResultSummary({ generation, credits, variant, onOpen }: {
       type="button"
       onClick={onOpen}
       aria-live="polite"
-      className="material fixed inset-x-4 bottom-[92px] z-30 flex h-12 items-center justify-between gap-2 rounded-full pr-3 pl-5 text-left text-[14px] shadow-lg active:scale-[0.99]"
+      className={cx(
+        'material fixed right-4 z-30 flex items-center justify-between gap-2 rounded-full pr-3 pl-5 text-left text-[14px] shadow-lg transition-[left,bottom,height] duration-300 ease-out active:scale-[0.99]',
+        compact ? 'bottom-4 left-[84px] h-14' : 'bottom-[92px] left-4 h-12',
+      )}
     >
       {content}
       <span className="flex shrink-0 items-center text-[13px] font-semibold text-accent-fg">
-        시간표 보기 <ChevronRight size={16} strokeWidth={2.5} />
+        {!compact && '시간표 보기'} <ChevronRight size={16} strokeWidth={2.5} />
       </span>
     </button>
   )

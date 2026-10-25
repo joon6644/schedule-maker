@@ -23,9 +23,11 @@ interface Group {
  * - ⊕: 과목 담기 (분반 상관없이) / 분반 옆 +: 이 분반만 담기
  * - 펼친 과목·누른 분반은 시간표에 점선으로 미리보기 (onPreview)
  */
-export function SearchPanel({ courses, onPreview }: {
+export function SearchPanel({ courses, onPreview, pageScroll }: {
   courses: CourseData[]
   onPreview: (items: PreviewItem[] | null) => void
+  /** 모바일: 목록이 따로 스크롤하지 않고 화면과 함께 스크롤, 검색창은 위에 고정 */
+  pageScroll?: boolean
 }) {
   const { dispatch } = useStore()
   const config = useConfig()
@@ -103,8 +105,8 @@ export function SearchPanel({ courses, onPreview }: {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="space-y-2 px-4 pt-1 pb-3">
+    <div className={pageScroll ? undefined : 'flex h-full min-h-0 flex-col'}>
+      <div className={cx('space-y-2 px-4 pt-1 pb-3', pageScroll && 'sticky top-0 z-10 bg-surface')}>
         <div className="relative">
           <Search size={16} className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-fg-subtle" />
           <input
@@ -131,7 +133,7 @@ export function SearchPanel({ courses, onPreview }: {
         </p>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4">
+      <div className={cx('px-2 pb-4', !pageScroll && 'min-h-0 flex-1 overflow-y-auto')}>
         {groups.length === 0 ? (
           <EmptyState icon={<Search size={36} strokeWidth={1.5} />} title="검색 결과 없음" />
         ) : (
@@ -175,6 +177,8 @@ export function SearchPanel({ courses, onPreview }: {
                         // 분반이 하나뿐이면 이 줄의 + 가 곧 과목 담기 (분반 상관없이)
                         const single = g.sections.length === 1
                         const added = single ? anyAdded(g.name) || sectionAdded(c) : sectionAdded(c)
+                        // '분반 상관없이'로 담았으면 모든 분반이 포함된 것 → 같이 체크 (따로 빼거나 담을 수는 없음)
+                        const implied = !single && !added && anyAdded(g.name)
                         const toggle = () => (single && !sectionAdded(c) ? toggleAny(g.name) : toggleSection(c))
                         return (
                           <li key={c.id} className={cx('flex items-center gap-1 rounded-md transition-colors', selected ? 'bg-surface-sunken' : 'hover:bg-surface-hover')}>
@@ -189,7 +193,7 @@ export function SearchPanel({ courses, onPreview }: {
                                 </span>
                               </span>
                             </button>
-                            <AddToggle added={added} label={single ? '담기' : '이 분반만 담기'} onClick={toggle} />
+                            <AddToggle added={added} implied={implied} label={single ? '담기' : '이 분반만 담기'} onClick={toggle} />
                           </li>
                         )
                       })}
@@ -214,16 +218,22 @@ export function SearchPanel({ courses, onPreview }: {
 
 const colorNo = (i: number) => (i % 10) + 1
 
-/** 담기(+) / 담김(✓) 토글 — 담긴 상태는 강조색 */
-function AddToggle({ added, label, onClick }: { added: boolean; label: string; onClick: () => void }) {
+/** 담기(+) / 담김(✓) 토글 — 담긴 상태는 강조색, '분반 상관없이'에 포함된 분반은 연한 체크(누를 수 없음) */
+function AddToggle({ added, implied, label, onClick }: { added: boolean; implied?: boolean; label: string; onClick: () => void }) {
   return (
     <IconButton
-      label={added ? '빼기' : label}
+      label={added ? '빼기' : implied ? '분반 상관없이로 담겨 있음' : label}
       size="sm"
-      className={cx('mr-1', added && 'bg-accent text-fg-on-accent hover:bg-accent-hover hover:text-fg-on-accent')}
+      disabled={implied}
+      className={cx(
+        'mr-1',
+        added && 'bg-accent text-fg-on-accent hover:bg-accent-hover hover:text-fg-on-accent',
+        // disabled 의 흐림(opacity) 대신 연한 강조색으로 '포함됨'을 보여 줌
+        implied && 'bg-accent-soft text-accent-fg disabled:opacity-100',
+      )}
       onClick={onClick}
     >
-      {added ? <Check size={14} strokeWidth={2.8} /> : <Plus size={15} strokeWidth={2.4} />}
+      {added || implied ? <Check size={14} strokeWidth={2.8} /> : <Plus size={15} strokeWidth={2.4} />}
     </IconButton>
   )
 }
