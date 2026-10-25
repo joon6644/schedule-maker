@@ -11,6 +11,8 @@
 
 설치 없이 브라우저(PC·모바일)에서 쓰는 버전입니다. 서버 없이 정적 파일로 동작하고, 시간표 계산은 브라우저의 Web Worker에서 실행됩니다.
 
+**바로 쓰기: https://joon6644.github.io/schedule-maker/** — `main`에 push하면 GitHub Actions가 자동으로 다시 배포합니다.
+
 ```bash
 cd web
 npm install

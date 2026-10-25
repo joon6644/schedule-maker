@@ -1,7 +1,8 @@
 name: Deploy Web (GitHub Pages)
 
 # main 에 웹 관련 변경이 push 되면 web/ 을 빌드해서 GitHub Pages 에 배포
-# 처음 한 번: 저장소 Settings → Pages → Source 를 "GitHub Actions" 로
+# 배포 주소: https://joon6644.github.io/schedule-maker/
+# (저장소 Settings → Pages → Source 가 "GitHub Actions" 여야 함)
 on:
   push:
     branches: [main]
