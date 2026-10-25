@@ -44,6 +44,13 @@ function SavedConditions({ onDone, notify }: { onDone: () => void; notify: Notif
   const config = useConfig()
   const { dispatch } = useStore()
   const [adding, setAdding] = useState(false)
+  /** 지금 조건과 똑같이 저장된 것이 있으면 저장을 막고 알려 줌 */
+  const [duplicate, setDuplicate] = useState<ConditionPreset | null>(null)
+  const startSave = () => {
+    const same = presets.find((p) => sameConfig(p.config, config))
+    if (same) setDuplicate(same)
+    else setAdding(true)
+  }
   /** 불러오기 전에 확인 중인 조건 */
   const [confirming, setConfirming] = useState<ConditionPreset | null>(null)
 
@@ -75,8 +82,12 @@ function SavedConditions({ onDone, notify }: { onDone: () => void; notify: Notif
               onCancel={() => setAdding(false)}
             />
           </div>
+        ) : duplicate && presets.some((p) => p.id === duplicate.id) ? (
+          <p className="flex min-h-11 items-center px-4 text-[15px] text-fg-muted">
+            이미 저장된 ‘{duplicate.name}’{withGwa(duplicate.name)} 동일합니다
+          </p>
         ) : (
-          <AddRow label="지금 조건 저장" onClick={() => setAdding(true)} />
+          <AddRow label="지금 조건 저장" onClick={startSave} />
         )}
       </Section>
 
@@ -114,12 +125,23 @@ function SavedConditions({ onDone, notify }: { onDone: () => void; notify: Notif
 
 /** '조건 1'로 / '조건 3'으로 — 마지막 글자 받침에 맞춘 조사 (숫자는 읽는 소리 기준) */
 function withRo(name: string) {
+  const b = batchim(name)
+  return b === 'none' || b === 'rieul' ? '로' : '으로'
+}
+
+/** '조건 1'과 / '조건 2'와 */
+function withGwa(name: string) {
+  return batchim(name) === 'none' ? '와' : '과'
+}
+
+/** 마지막 글자의 받침 — 숫자는 읽는 소리(영·일·이·삼…) 기준, 한글이 아니면 받침 없음으로 */
+function batchim(name: string): 'none' | 'rieul' | 'other' {
   const last = name.trim().slice(-1)
-  if (/[0-9]/.test(last)) return '036'.includes(last) ? '으로' : '로'
+  if (/[0-9]/.test(last)) return '036'.includes(last) ? 'other' : '178'.includes(last) ? 'rieul' : 'none'
   const code = last.charCodeAt(0) - 0xac00
-  if (code < 0 || code > 11171) return '로'
+  if (code < 0 || code > 11171) return 'none'
   const final = code % 28
-  return final === 0 || final === 8 ? '로' : '으로' // 받침 없음·ㄹ 받침 → 로
+  return final === 0 ? 'none' : final === 8 ? 'rieul' : 'other'
 }
 
 /** 담은 강의 수 + 학점 + 공강 + 피하고 싶은 시간 */
