@@ -16,6 +16,13 @@ export interface SavedSchedule {
   savedAt: number
 }
 
+/** 이름 붙여 저장한 조건 = 담은 강의 + 학점·공강·피하고 싶은 시간 한 묶음 */
+export interface ConditionPreset {
+  id: string
+  name: string
+  config: ScheduleConfig
+}
+
 export interface AppState {
   /** 항상 최신 학기 (지난 학기는 보지 않음) */
   termKey: string | null
@@ -23,6 +30,8 @@ export interface AppState {
   configs: Record<string, ScheduleConfig>
   /** 학기별 저장한 시간표 */
   saved: Record<string, SavedSchedule[]>
+  /** 학기별 저장한 조건 (담은 강의가 학기마다 달라서 학기별) */
+  presets: Record<string, ConditionPreset[]>
   theme: ThemePref
   /** 피하고 싶은 시간을 시간표에 빗금으로 표시 */
   showAvoid: boolean
@@ -46,14 +55,21 @@ export type Action =
   | { type: 'saveSchedule'; schedule: SavedSchedule }
   | { type: 'renameSaved'; id: string; name: string }
   | { type: 'removeSaved'; id: string }
+  | { type: 'savePreset'; preset: ConditionPreset }
+  | { type: 'renamePreset'; id: string; name: string }
+  | { type: 'removePreset'; id: string }
 
 const STORAGE_KEY = 'schedule-maker:v1'
 
 function loadState(): AppState {
-  const fallback: AppState = { termKey: null, configs: {}, saved: {}, theme: 'system', showAvoid: false }
+  const fallback: AppState = { termKey: null, configs: {}, saved: {}, presets: {}, theme: 'system', showAvoid: false }
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? { ...fallback, ...JSON.parse(raw) } : fallback
+    if (!raw) return fallback
+    const loaded = { ...fallback, ...JSON.parse(raw) }
+    // 예전 형식(학기 구분 없는 조건 목록)은 버림
+    if (Array.isArray(loaded.presets)) loaded.presets = {}
+    return loaded
   } catch {
     return fallback
   }
@@ -73,13 +89,8 @@ function reducer(state: AppState, action: Action): AppState {
     case 'setTerm': {
       // 새 학기로 넘어가면 지난 학기 설정은 지움 (강의가 달라 다시 쓸 일이 없음)
       const kept = state.configs[action.termKey]
-      const keptSaved = state.saved[action.termKey]
-      return {
-        ...state,
-        termKey: action.termKey,
-        configs: kept ? { [action.termKey]: kept } : {},
-        saved: keptSaved ? { [action.termKey]: keptSaved } : {},
-      }
+      const only = <T,>(record: Record<string, T>) => (record[action.termKey] ? { [action.termKey]: record[action.termKey] } : {})
+      return { ...state, termKey: action.termKey, configs: kept ? { [action.termKey]: kept } : {}, saved: only(state.saved), presets: only(state.presets) }
     }
     case 'setTheme':
       return { ...state, theme: action.theme }
@@ -131,12 +142,27 @@ function reducer(state: AppState, action: Action): AppState {
     case 'replaceConfig':
       return updateConfig(state, () => action.config)
     case 'saveSchedule':
-      return updateSaved(state, (list) => [...list.filter((x) => x.id !== action.schedule.id), action.schedule].sort((a, b) => a.savedAt - b.savedAt))
+      // 같은 조합이나 같은 이름이면 덮어씀
+      return updateSaved(state, (list) =>
+        [...list.filter((x) => x.id !== action.schedule.id && x.name !== action.schedule.name), action.schedule].sort((a, b) => a.savedAt - b.savedAt),
+      )
     case 'renameSaved':
       return updateSaved(state, (list) => list.map((x) => (x.id === action.id ? { ...x, name: action.name } : x)))
     case 'removeSaved':
       return updateSaved(state, (list) => list.filter((x) => x.id !== action.id))
+    case 'savePreset':
+      // 같은 이름이면 덮어씀 (확인은 NameForm 에서)
+      return updatePresets(state, (list) => [...list.filter((p) => p.id !== action.preset.id && p.name !== action.preset.name), action.preset])
+    case 'renamePreset':
+      return updatePresets(state, (list) => list.map((p) => (p.id === action.id ? { ...p, name: action.name } : p)))
+    case 'removePreset':
+      return updatePresets(state, (list) => list.filter((p) => p.id !== action.id))
   }
+}
+
+function updatePresets(state: AppState, update: (list: ConditionPreset[]) => ConditionPreset[]): AppState {
+  if (!state.termKey) return state
+  return { ...state, presets: { ...state.presets, [state.termKey]: update(state.presets[state.termKey] ?? []) } }
 }
 
 function updateSaved(state: AppState, update: (list: SavedSchedule[]) => SavedSchedule[]): AppState {
@@ -175,4 +201,10 @@ const NO_SAVED: SavedSchedule[] = []
 export function useSaved() {
   const { state } = useStore()
   return (state.termKey && state.saved[state.termKey]) || NO_SAVED
+}
+
+const NO_PRESETS: ConditionPreset[] = []
+export function usePresets() {
+  const { state } = useStore()
+  return (state.termKey && state.presets[state.termKey]) || NO_PRESETS
 }

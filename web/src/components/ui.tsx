@@ -5,7 +5,8 @@
  * Apple 스타일 원칙: 테두리·구분선 없음, 캡슐 버튼, 채워진(fill) 입력 컨트롤, 그룹은 배경 대비로만 구분
  */
 import { Minus, Plus, X } from 'lucide-react'
-import type { ButtonHTMLAttributes, ReactNode } from 'react'
+import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 
 export function cx(...classes: (string | false | null | undefined)[]) {
   return classes.filter(Boolean).join(' ')
@@ -215,6 +216,183 @@ export function AddRow({ label, onClick }: { label: string; onClick: () => void 
       {label}
     </button>
   )
+}
+
+/** 버튼 아래 떠서 열리는 작은 창 — 바깥을 누르거나 Esc 면 닫힘 (주변 레이아웃을 밀지 않음) */
+export function Popover({ open, onClose, trigger, children, className }: {
+  open: boolean
+  onClose: () => void
+  trigger: ReactNode
+  children: ReactNode
+  className?: string
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) onClose()
+    }
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open, onClose])
+  return (
+    <div ref={ref} className="relative">
+      {trigger}
+      {open && <div className={cx('animate-popover absolute top-full right-0 z-40 mt-2 w-64 rounded-lg bg-surface-raised p-3 shadow-lg', className)}>{children}</div>}
+    </div>
+  )
+}
+
+/**
+ * 가운데(모바일은 아래) 뜨는 대화상자 — 배경을 누르거나 Esc 면 닫힘
+ * body 로 portal: 반투명 헤더(backdrop-filter) 안에서 열어도 화면 전체를 덮도록
+ */
+export function Dialog({ open, onClose, title, children }: {
+  open: boolean
+  onClose: () => void
+  title: string
+  children: ReactNode
+}) {
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open, onClose])
+  if (!open) return null
+  return createPortal(
+    <div className="animate-fade-in fixed inset-0 z-40 flex items-end justify-center bg-overlay sm:items-center sm:p-6" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      {/* 크기 고정: 내용이 바뀌어도 창이 커졌다 작아졌다 하지 않게, 넘치면 안에서 스크롤 */}
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className="flex h-[min(520px,85vh)] w-full flex-col rounded-t-2xl bg-surface shadow-lg sm:w-[420px] sm:rounded-2xl"
+      >
+        <header className="flex shrink-0 items-center justify-between px-5 pt-4 pb-3">
+          <h2 className="text-[17px] font-semibold tracking-tight">{title}</h2>
+          <IconButton label="닫기" size="sm" onClick={onClose}>
+            <X size={16} />
+          </IconButton>
+        </header>
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">{children}</div>
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
+/** 작은 확인 팝업 — 다른 창 위에 한 겹 더 뜸. Esc·배경 = 취소 (뒤 창은 그대로) */
+export function ConfirmDialog({ open, title, detail, confirmLabel, onConfirm, onCancel }: {
+  open: boolean
+  title: ReactNode
+  detail?: ReactNode
+  confirmLabel: string
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  useEffect(() => {
+    if (!open) return
+    // 캡처 단계에서 먼저 받아 뒤의 대화상자까지 Esc 로 닫히지 않게
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      e.stopPropagation()
+      onCancel()
+    }
+    document.addEventListener('keydown', onKey, true)
+    return () => document.removeEventListener('keydown', onKey, true)
+  }, [open, onCancel])
+  if (!open) return null
+  return createPortal(
+    <div className="animate-fade-in fixed inset-0 z-50 flex items-center justify-center bg-overlay p-6" onMouseDown={(e) => e.target === e.currentTarget && onCancel()}>
+      <div role="alertdialog" aria-modal="true" className="w-full max-w-[300px] rounded-2xl bg-surface-raised p-5 shadow-lg">
+        <p className="text-[16px] font-semibold tracking-tight break-keep">{title}</p>
+        {detail && <p className="mt-1 text-[13px] text-fg-muted">{detail}</p>}
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <Button onClick={onCancel}>취소</Button>
+          <Button variant="primary" autoFocus onClick={onConfirm}>
+            {confirmLabel}
+          </Button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
+/** 이름 입력 + 취소/저장 (Popover 안에서 사용). 같은 이름이 있으면 덮어쓸지 한 번 묻는다 */
+export function NameForm({ initial, taken, onSubmit, onCancel }: {
+  initial: string
+  /** 이미 있는 이름인지 */
+  taken?: (name: string) => boolean
+  onSubmit: (name: string) => void
+  onCancel: () => void
+}) {
+  const [name, setName] = useState(initial)
+  const [confirming, setConfirming] = useState(false)
+  const value = name.trim() || initial
+
+  if (confirming) {
+    return (
+      <div className="space-y-3">
+        <p className="text-[14px] leading-snug">
+          <span className="font-semibold">{value}</span>
+          <br />
+          같은 이름이 있어요. 덮어쓸까요?
+        </p>
+        <div className="flex justify-end gap-1.5">
+          <Button variant="ghost" size="sm" onClick={() => setConfirming(false)}>
+            취소
+          </Button>
+          <Button variant="primary" size="sm" autoFocus onClick={() => onSubmit(value)}>
+            덮어쓰기
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <form
+      className="space-y-3"
+      onSubmit={(e) => {
+        e.preventDefault()
+        if (taken?.(value)) setConfirming(true)
+        else onSubmit(value)
+      }}
+    >
+      <input
+        name="name"
+        autoFocus
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onFocus={(e) => e.target.select()}
+        maxLength={30}
+        aria-label="이름"
+        className="h-9 w-full rounded-md bg-surface-sunken px-3 text-[15px] outline-none focus:ring-2 focus:ring-accent-soft"
+      />
+      <div className="flex justify-end gap-1.5">
+        <Button variant="ghost" size="sm" onClick={onCancel}>
+          취소
+        </Button>
+        <Button variant="primary" size="sm" type="submit">
+          저장
+        </Button>
+      </div>
+    </form>
+  )
+}
+
+/** '조건 1', '조건 2' … 처럼 이어지는 다음 기본 이름 */
+export function nextName(prefix: string, names: string[]) {
+  const pattern = new RegExp(`^${prefix} (\\d+)$`)
+  const used = names.map((n) => n.match(pattern)?.[1]).filter(Boolean).map(Number)
+  return `${prefix} ${Math.max(0, ...used) + 1}`
 }
 
 /** iOS UISwitch */

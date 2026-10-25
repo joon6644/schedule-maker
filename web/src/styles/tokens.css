@@ -34,6 +34,7 @@
   --color-border: #3c3c434a; /* separator */
   --color-border-strong: #c6c6c8; /* opaqueSeparator */
   --color-grid: #3c3c4317; /* 시간표 격자 (희미하게) */
+  --color-overlay: #0000004d; /* 대화상자 뒤 배경 */
 
   /* ── Color / Text ─────────────────────────────────── */
   --color-fg: #1d1d1f;
@@ -102,6 +103,7 @@
   --color-border: #ffffff26;
   --color-border-strong: #424244;
   --color-grid: #ffffff12;
+  --color-overlay: #00000080;
 
   /* 글자도 순백 대신 한 단계 낮춘 밝기 (본문 대비 12.7:1) */
   --color-fg: #e7e7ea;

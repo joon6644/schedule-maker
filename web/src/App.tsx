@@ -1,8 +1,8 @@
-import { BookOpen, Bookmark, CalendarRange, Download, Loader2, Monitor, Moon, Search, SlidersHorizontal, Sun, Upload } from 'lucide-react'
+import { BookOpen, Bookmark, CalendarRange, Loader2, Monitor, Moon, Search, SlidersHorizontal, Sun } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Button, cx, IconButton, Segmented, Toast, type ToastData } from './components/ui'
-import { parseConfigFile, toConfigFile } from './engine/config'
+import { cx, IconButton, Segmented, Toast, type ToastData } from './components/ui'
 import { BasketPanel } from './features/BasketPanel'
+import { ConditionsButton } from './features/ConditionsDialog'
 import { ConstraintsPanel } from './features/ConstraintsPanel'
 import { ResultSummary } from './features/ResultSummary'
 import { ResultView } from './features/ResultView'
@@ -168,6 +168,7 @@ export default function App() {
       generation={generation}
       courses={courses}
       onAddCourses={() => setTab('search')}
+      emptyGrid={isDesktop}
       viewer={viewer}
       onViewerChange={setViewer}
       notify={notify}
@@ -179,7 +180,7 @@ export default function App() {
 
   const controls = (
     <>
-      <ConfigFileButtons />
+      <ConditionsButton notify={notify} onApplied={() => setSavedView(null)} />
       <ThemeButton />
     </>
   )
@@ -290,64 +291,6 @@ function Loading() {
     <div className="flex items-center justify-center gap-2 py-16 text-sm text-fg-muted">
       <Loader2 size={16} className="animate-spin" /> 강의 데이터를 불러오는 중…
     </div>
-  )
-}
-
-/** 설정 파일 불러오기/내보내기 (데스크톱 앱의 설정 JSON과 호환) */
-function ConfigFileButtons() {
-  const { state, dispatch } = useStore()
-  const config = useConfig()
-  const input = useRef<HTMLInputElement>(null)
-
-  const exportConfig = () => {
-    const blob = new Blob([JSON.stringify(toConfigFile(config), null, 4)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${(state.termKey ?? 'config').replace('mju_', '')}.json`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
-  const importConfig = async (file: File) => {
-    try {
-      dispatch({ type: 'replaceConfig', config: parseConfigFile(JSON.parse(await file.text())) })
-    } catch {
-      alert('설정 파일을 읽을 수 없습니다. JSON 형식을 확인해 주세요.')
-    }
-  }
-
-  return (
-    <>
-      <input
-        ref={input}
-        type="file"
-        accept="application/json,.json"
-        hidden
-        onChange={(e) => {
-          const file = e.target.files?.[0]
-          if (file) importConfig(file)
-          e.target.value = ''
-        }}
-      />
-      {/* Button 의 inline-flex 와 겹치지 않도록 반응형 표시는 감싸는 요소에서 처리 */}
-      <span className="hidden gap-1.5 md:flex">
-        <Button variant="ghost" size="sm" onClick={() => input.current?.click()}>
-          <Upload size={14} /> 불러오기
-        </Button>
-        <Button variant="ghost" size="sm" onClick={exportConfig}>
-          <Download size={14} /> 내보내기
-        </Button>
-      </span>
-      <span className="flex md:hidden">
-        <IconButton label="설정 불러오기" onClick={() => input.current?.click()}>
-          <Upload size={16} />
-        </IconButton>
-        <IconButton label="설정 내보내기" onClick={exportConfig}>
-          <Download size={16} />
-        </IconButton>
-      </span>
-    </>
   )
 }
 

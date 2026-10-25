@@ -1,6 +1,6 @@
 import { AlertCircle, Bookmark, CalendarRange, ChevronLeft, ChevronRight, Loader2, Pin, Plus, Repeat2, Sparkles } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Badge, Button, cx, EmptyState, IconButton, type ToastData } from '../components/ui'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { Badge, Button, cx, EmptyState, IconButton, NameForm, nextName, Popover, type ToastData } from '../components/ui'
 import { timeSummary } from '../engine/course'
 import type { CourseData, GenerationOutput, ScheduleConfig, ScheduleResult } from '../engine/types'
 import { assignColors, courseColorVars } from '../lib/courseColors'
@@ -20,10 +20,12 @@ interface ViewerProps {
   notify: Notify
 }
 
-export function ResultView({ generation, courses, onAddCourses, savedView, onSavedViewChange, ...viewerProps }: ViewerProps & {
+export function ResultView({ generation, courses, onAddCourses, savedView, onSavedViewChange, emptyGrid, ...viewerProps }: ViewerProps & {
   generation: GenerationState
   courses: CourseData[]
   onAddCourses: () => void
+  /** PC: 시간표가 없을 때도 빈 틀을 보여 줌 (강의 검색 미리보기가 보이도록) */
+  emptyGrid: boolean
   /** 저장 탭에서 연 시간표 (null = 생성된 조합 보기) */
   savedView: string | null
   onSavedViewChange: (id: string | null) => void
@@ -36,38 +38,101 @@ export function ResultView({ generation, courses, onAddCourses, savedView, onSav
   if (entry) {
     return <SavedResult entry={entry} saved={saved} courses={courses} preview={viewerProps.preview} onOpen={onSavedViewChange} />
   }
+  if (emptyGrid && (generation.status === 'idle' || generation.status === 'error' || !output)) {
+    return (
+      <EmptyGrid
+        preview={viewerProps.preview}
+        subtitle={
+          generation.status === 'idle' ? (
+            '강의를 담으면 바로 만들어져요'
+          ) : generation.status === 'error' ? (
+            <span className="text-danger">{generation.expected ? '시간표를 만들 수 없어요' : '오류가 발생했어요'}</span>
+          ) : (
+            <>
+              <Loader2 size={12} className="animate-spin" /> 조합을 찾는 중
+            </>
+          )
+        }
+        notice={generation.status === 'error' && generation.message}
+      />
+    )
+  }
+  // 모바일: 흐린 빈 틀 위에 지금 상태 메시지
   if (generation.status === 'idle') {
     return (
-      <EmptyState
-        icon={<CalendarRange size={44} strokeWidth={1.25} />}
-        title="강의를 담으면 바로 시간표가 만들어져요"
-        action={<Button variant="primary" onClick={onAddCourses}>강의 담으러 가기</Button>}
-      />
+      <FadedGrid>
+        <EmptyState
+          icon={<CalendarRange size={44} strokeWidth={1.25} />}
+          title="강의를 담으면 바로 시간표가 만들어져요"
+          action={<Button variant="primary" onClick={onAddCourses}>강의 담으러 가기</Button>}
+        />
+      </FadedGrid>
     )
   }
   if (generation.status === 'error') {
     return (
-      <EmptyState
-        icon={<AlertCircle size={44} strokeWidth={1.25} />}
-        title={generation.expected ? '시간표를 만들 수 없어요' : '오류가 발생했어요'}
-        description={<span className="whitespace-pre-line">{generation.message}</span>}
-      />
+      <FadedGrid>
+        <EmptyState
+          icon={<AlertCircle size={44} strokeWidth={1.25} />}
+          title={generation.expected ? '시간표를 만들 수 없어요' : '오류가 발생했어요'}
+          description={<span className="whitespace-pre-line">{generation.message}</span>}
+        />
+      </FadedGrid>
     )
   }
   if (!output) {
     return (
-      <div className="flex items-center justify-center gap-2 py-24 text-[15px] text-fg-muted">
-        <Loader2 size={16} className="animate-spin" /> 조합을 찾는 중…
-      </div>
+      <FadedGrid>
+        <div className="flex items-center justify-center gap-2 py-24 text-[15px] text-fg-muted">
+          <Loader2 size={16} className="animate-spin" /> 조합을 찾는 중…
+        </div>
+      </FadedGrid>
     )
   }
-  return <Results output={output} running={generation.status === 'running'} courses={courses} {...viewerProps} />
+  return <Results output={output} running={generation.status === 'running'} courses={courses} emptyGrid={emptyGrid} {...viewerProps} />
 }
 
-function Results({ output, running, courses, viewer, onViewerChange, notify, preview }: ViewerProps & {
+/** 빈 시간표 틀 (PC) — 결과가 생기면 같은 자리에 그대로 채워지도록 레이아웃을 Results 와 맞춤 */
+function EmptyGrid({ subtitle, notice, preview }: { subtitle: ReactNode; notice?: ReactNode; preview?: PreviewItem[] | null }) {
+  const config = useConfig()
+  const showAvoid = useStore().state.showAvoid
+  return (
+    <div className="grid gap-x-10 gap-y-8 xl:grid-cols-[minmax(0,1fr)_280px]">
+      <div className="min-w-0">
+        <ResultHeader title="시간표" subtitle={subtitle} />
+        <Timetable
+          courses={NO_COURSES}
+          colors={NO_COLORS}
+          avoid={showAvoid ? { days: config.excludedDays, times: config.excludedTimes } : undefined}
+          preview={preview ?? undefined}
+          pinned={NO_PINS}
+        />
+        {notice && <p className="mt-4 rounded-md bg-surface-sunken px-3.5 py-2.5 text-[13px] whitespace-pre-line text-fg-muted">{notice}</p>}
+      </div>
+    </div>
+  )
+}
+
+/** 흐린 빈 시간표 틀 위에 메시지 (모바일: 미리보기는 없지만 시간표 자리임을 보여 줌) */
+function FadedGrid({ children }: { children: ReactNode }) {
+  return (
+    <div className="relative">
+      <div className="pointer-events-none opacity-30" aria-hidden>
+        <Timetable courses={NO_COURSES} colors={NO_COLORS} pinned={NO_PINS} />
+      </div>
+      <div className="absolute inset-x-0 top-8">{children}</div>
+    </div>
+  )
+}
+
+const NO_COURSES: CourseData[] = []
+const NO_COLORS = new Map<string, number>()
+
+function Results({ output, running, courses, viewer, onViewerChange, notify, preview, emptyGrid }: ViewerProps & {
   output: GenerationOutput
   running: boolean
   courses: CourseData[]
+  emptyGrid: boolean
 }) {
   const config = useConfig()
   const { state, dispatch } = useStore()
@@ -167,7 +232,7 @@ function Results({ output, running, courses, viewer, onViewerChange, notify, pre
           controls={
             current && (
               <>
-                <SaveButton entry={savedEntry} defaultName={`시간표 ${saved.length + 1}`} onSave={save} onUnsave={unsave} />
+                <SaveButton entry={savedEntry} defaultName={nextName('시간표', saved.map((s) => s.name))} taken={(name) => saved.some((s) => s.name === name)} onSave={save} onUnsave={unsave} />
                 <Pager index={index} total={filtered.length} go={go} />
               </>
             )
@@ -175,8 +240,9 @@ function Results({ output, running, courses, viewer, onViewerChange, notify, pre
         />
 
         {/* 시간표 위에는 아무것도 끼워 넣지 않음 → 고정·재계산해도 시간표가 움직이지 않게 */}
-        {current ? (
+        {current || emptyGrid ? (
           <div className={cx('transition-opacity', running && 'opacity-50')}>
+            {/* 조합이 0개여도 PC 에서는 빈 틀 유지 (미리보기용) */}
             <Timetable
               courses={currentCourses}
               colors={colors}
@@ -187,11 +253,13 @@ function Results({ output, running, courses, viewer, onViewerChange, notify, pre
             />
           </div>
         ) : (
-          <EmptyState
-            icon={<CalendarRange size={44} strokeWidth={1.25} />}
-            title="조건에 맞는 시간표가 없어요"
-            description="학점 범위를 넓히거나, 공강·피하고 싶은 시간을 줄이거나, 희망 강의를 더 담아 보세요."
-          />
+          <FadedGrid>
+            <EmptyState
+              icon={<CalendarRange size={44} strokeWidth={1.25} />}
+              title="조건에 맞는 시간표가 없어요"
+              description="학점 범위를 넓히거나, 공강·피하고 싶은 시간을 줄이거나, 희망 강의를 더 담아 보세요."
+            />
+          </FadedGrid>
         )}
 
         {(output.timedOut || current?.randomFilled) && (
@@ -389,73 +457,38 @@ function Pager({ index, total, go }: { index: number; total: number; go: (delta:
 }
 
 /** 저장(북마크): 누르면 이름을 정하는 작은 창, 저장된 상태에서 누르면 저장 취소 */
-function SaveButton({ entry, defaultName, onSave, onUnsave }: {
+function SaveButton({ entry, defaultName, taken, onSave, onUnsave }: {
   entry?: SavedSchedule
   defaultName: string
+  taken: (name: string) => boolean
   onSave: (name: string) => void
   onUnsave: (entry: SavedSchedule) => void
 }) {
   const [open, setOpen] = useState(false)
-  const [name, setName] = useState('')
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-    const onDown = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', onDown)
-    return () => document.removeEventListener('mousedown', onDown)
-  }, [open])
-
-  const click = () => {
-    if (entry) return onUnsave(entry)
-    setName(defaultName)
-    setOpen((o) => !o)
-  }
-  const submit = () => {
-    onSave(name.trim() || defaultName)
-    setOpen(false)
-  }
-
   return (
-    <div ref={ref} className="relative">
-      <IconButton
-        label={entry ? `저장됨: ${entry.name} (누르면 저장 취소)` : '이 시간표 저장'}
-        className={cx('bg-surface-sunken', entry && 'text-accent-fg hover:text-accent-fg')}
-        onClick={click}
-      >
-        <Bookmark size={17} fill={entry ? 'currentColor' : 'none'} />
-      </IconButton>
-      {open && (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault()
-            submit()
-          }}
-          className="animate-pop absolute top-full right-0 z-40 mt-2 w-64 space-y-3 rounded-lg bg-surface-raised p-3 shadow-lg"
+    <Popover
+      open={open}
+      onClose={() => setOpen(false)}
+      trigger={
+        <IconButton
+          label={entry ? `저장됨: ${entry.name} (누르면 저장 취소)` : '이 시간표 저장'}
+          className={cx('bg-surface-sunken', entry && 'text-accent-fg hover:text-accent-fg')}
+          onClick={() => (entry ? onUnsave(entry) : setOpen((o) => !o))}
         >
-          <input
-            autoFocus
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onFocus={(e) => e.target.select()}
-            onKeyDown={(e) => e.key === 'Escape' && setOpen(false)}
-            maxLength={30}
-            aria-label="시간표 이름"
-            className="h-9 w-full rounded-md bg-surface-sunken px-3 text-[15px] outline-none focus:ring-2 focus:ring-accent-soft"
-          />
-          <div className="flex justify-end gap-1.5">
-            <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
-              취소
-            </Button>
-            <Button variant="primary" size="sm" type="submit">
-              저장
-            </Button>
-          </div>
-        </form>
-      )}
-    </div>
+          <Bookmark size={17} fill={entry ? 'currentColor' : 'none'} />
+        </IconButton>
+      }
+    >
+      <NameForm
+        initial={defaultName}
+        taken={taken}
+        onCancel={() => setOpen(false)}
+        onSubmit={(name) => {
+          onSave(name)
+          setOpen(false)
+        }}
+      />
+    </Popover>
   )
 }
 
