@@ -10,7 +10,7 @@ import type { PreviewItem } from './features/Timetable'
 import { SavedPanel } from './features/SavedPanel'
 import { SearchPanel } from './features/SearchPanel'
 import { useCourses, useGeneration, useTerms } from './lib/data'
-import { countLabel } from './lib/format'
+import { countLabel, isCapped } from './lib/format'
 import { useConfig, useSaved, useStore, type ThemePref } from './lib/store'
 import { describeChange, EMPTY_VIEWER, reconcileViewer, scheduleKey, type ViewerState } from './lib/viewer'
 import type { GenerationOutput, ScheduleConfig } from './engine/types'
@@ -86,8 +86,11 @@ export default function App() {
           : [
               count === 0
                 ? `${what} → 조합 없음`
-                : // 담기·빼기·옮기기는 무엇이 바뀌었는지 앞에 붙임
-                  `${isListChange ? `${what} · ` : ''}조합 ${countLabel(prev.count)} → ${countLabel(count)}`,
+                : isCapped(prev.count) && isCapped(count)
+                  ? // 둘 다 상한(10,000개+)이면 수 변화는 의미 없음 → 무엇이 바뀌었는지만
+                    what
+                  : // 담기·빼기·옮기기는 무엇이 바뀌었는지 앞에 붙임
+                    `${isListChange ? `${what} · ` : ''}조합 ${countLabel(prev.count)} → ${countLabel(count)}`,
               lostView && count > 0 && '보던 시간표 바뀜',
               dropped > 0 && `고정 ${dropped}개 풀림`,
             ]
@@ -215,7 +218,7 @@ export default function App() {
           {errorBanner}
           <main className="min-w-0 flex-1 overflow-y-auto px-10 pt-2 pb-12">{results}</main>
         </div>
-        <Toast toast={toast} onClose={() => setToast(null)} className="bottom-8" />
+        <Toast toast={toast} onClose={() => setToast(null)} className="bottom-8 left-[calc(var(--layout-sidebar-width)+1rem)]" />
       </div>
     )
   }
@@ -234,7 +237,8 @@ export default function App() {
         <div className="ml-auto flex items-center gap-1">{controls}</div>
       </header>
       {errorBanner}
-      <div className={cx('min-h-0 flex-1 overflow-y-auto pt-2', tab === 'result' ? 'pb-28' : 'pb-44')}>
+      {/* 검색 탭은 위 여백을 검색창(고정 영역) 안에 둠 → 스크롤 때 헤더와 검색창 사이로 목록이 비치지 않게 */}
+      <div className={cx('min-h-0 flex-1 overflow-y-auto', tab !== 'search' && 'pt-2', tab === 'result' ? 'pb-28' : 'pb-44')}>
         {tab === 'result' ? <div className="px-4">{results}</div> : panel(tab)}
       </div>
       {tab !== 'result' && (
@@ -243,13 +247,24 @@ export default function App() {
       <Toast
         toast={toast}
         onClose={() => setToast(null)}
-        className={barCompact ? 'bottom-[88px]' : tab === 'result' ? 'bottom-24' : 'bottom-[152px]'}
+        className={barCompact ? 'bottom-16' : tab === 'result' ? 'bottom-24' : 'bottom-[152px]'}
       />
-      {/* 아래로 스크롤하면 iOS 처럼 지금 탭 아이콘만 남는 작은 캡슐로 (누르거나 위로 스크롤하면 펼침) */}
+      {/* 떠 있는 바 뒤로 내용이 부드럽게 사라지도록 아래쪽을 배경색으로 흐리게 */}
+      <div
+        aria-hidden
+        className={cx(
+          'pointer-events-none fixed inset-x-0 bottom-0 z-20 bg-linear-to-t to-transparent transition-[height] duration-500 ease-ios',
+          tab === 'result' ? 'from-bg' : 'from-surface',
+          barCompact ? 'h-24' : tab === 'result' ? 'h-28' : 'h-40',
+        )}
+      />
+      {/* 아래로 스크롤하면 탭 바는 얇아지고(탭은 그대로) 요약 바는 숨김 — 위로 스크롤하거나 누르면 원래대로 */}
       <nav
         className={cx(
-          'material fixed bottom-4 left-4 z-30 grid rounded-full p-1 shadow-lg transition-[right,height] duration-300 ease-out',
-          barCompact ? 'right-[calc(100%-4.5rem)] h-14 grid-cols-1' : 'right-4 h-16 grid-cols-5',
+          'glass fixed z-30 grid rounded-full transition-[left,right,bottom,height,padding] duration-500 ease-ios',
+          // 접혀도 탭은 모두 그대로, 높이·폭만 줄고 이름 글자가 사라짐
+          // 좌우 폭은 85%로(양옆에서 7.5%씩), 높이는 64→44
+          barCompact ? 'right-[calc(1rem_+_(100%_-_2rem)_*_0.075)] bottom-3 left-[calc(1rem_+_(100%_-_2rem)_*_0.075)] h-11 grid-cols-5 p-0.5' : 'right-4 bottom-4 left-4 h-16 grid-cols-5 p-1',
         )}
       >
         <NavItem compact={barCompact} active={tab === 'search'} onClick={() => openTab('search')} icon={<Search size={20} />} label="검색" />
@@ -258,6 +273,7 @@ export default function App() {
         <NavItem compact={barCompact} active={tab === 'saved'} onClick={() => openTab('saved')} icon={<Bookmark size={20} />} label="저장" badge={savedCount || undefined} />
         <NavItem
           compact={barCompact}
+         
           active={tab === 'result'}
           onClick={() => openTab('result')}
           icon={generation.status === 'running' ? <Loader2 size={20} className="animate-spin" /> : <CalendarRange size={20} />}
@@ -291,25 +307,31 @@ function NavItem({ active, onClick, icon, label, badge, compact }: {
   icon: ReactNode
   label: string
   badge?: number
-  /** 접힌 탭 바: 지금 탭만 아이콘으로 */
+  /** 작아진 탭 바: 아이콘만 (이름은 사라짐) */
   compact?: boolean
 }) {
-  if (compact && !active) return null
   return (
     <button
       type="button"
       onClick={onClick}
       aria-current={active}
+      aria-label={label}
       className={cx(
-        'relative flex flex-col items-center justify-center gap-0.5 rounded-full text-[10px] font-medium transition-colors',
-        active ? 'bg-surface-sunken text-accent-fg' : 'text-fg-muted',
+        'relative flex flex-col items-center justify-center rounded-full font-medium transition-[gap,font-size,background-color,color] duration-300 ease-ios',
+        compact ? 'gap-0 text-[0px] [&_svg]:size-[18px]' : 'gap-0.5 text-[10px]',
+        active ? 'bg-accent-soft text-accent-fg' : 'text-fg-muted active:bg-surface-hover',
       )}
     >
       {icon}
-      {!compact && label}
-      {!compact && badge !== undefined && (
-        <span className="absolute top-1.5 left-1/2 ml-2.5 rounded-full bg-accent px-1.5 text-[10px] leading-4 font-semibold text-fg-on-accent tabular-nums">
-          {badge > 999 ? '999+' : badge}
+      <span className={cx('transition-opacity duration-300', compact && 'opacity-0')}>{label}</span>
+      {badge !== undefined && (
+        <span
+          className={cx(
+            'absolute left-1/2 min-w-4 rounded-full bg-accent px-1 text-center text-[10px] leading-4 font-semibold text-fg-on-accent tabular-nums shadow-sm transition-all duration-500 ease-ios',
+            compact ? 'top-0.5 ml-2' : 'top-1.5 ml-2.5',
+          )}
+        >
+          {badge > 99 ? '99+' : badge}
         </span>
       )}
     </button>

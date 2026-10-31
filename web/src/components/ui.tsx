@@ -164,11 +164,14 @@ export function Toast({ toast, onClose, className }: { toast: ToastData | null; 
       aria-live="polite"
       className={cx(
         // 좌우 16px 안에서 가운데 정렬 (left-1/2 기준이면 좁은 화면에서 폭이 절반으로 줄어듦)
-        'animate-fade-in fixed inset-x-4 z-50 mx-auto flex w-fit max-w-xl items-center gap-2 rounded-[22px] bg-fg py-1.5 pr-1.5 pl-4 text-[13px] leading-snug font-medium text-bg shadow-lg',
+        // 동작 버튼이 없으면 좌우 여백을 같게, 있으면 버튼 쪽만 좁게
+        'animate-fade-in fixed inset-x-4 z-50 mx-auto flex w-fit max-w-xl items-center gap-2 rounded-[22px] bg-toast py-1.5 text-[13px] leading-snug font-medium text-toast-fg shadow-lg',
+        toast.action ? 'pr-1.5 pl-4' : 'px-4',
         className,
       )}
     >
-      <span className="min-w-0 py-1">{toast.message}</span>
+      {/* 띄어쓰기 없는 긴 과목명도 캡슐 밖으로 넘치지 않게 */}
+      <span className="min-w-0 py-1 text-center break-keep [overflow-wrap:anywhere]">{toast.message}</span>
       {toast.action && (
         <button
           type="button"
@@ -176,7 +179,7 @@ export function Toast({ toast, onClose, className }: { toast: ToastData | null; 
             toast.action!.onClick()
             onClose()
           }}
-          className="shrink-0 rounded-full bg-bg/15 px-3 py-1 font-semibold text-bg transition hover:bg-bg/25"
+          className="shrink-0 rounded-full bg-toast-fg/15 px-3 py-1 font-semibold text-toast-fg transition hover:bg-toast-fg/25"
         >
           {toast.action.label}
         </button>

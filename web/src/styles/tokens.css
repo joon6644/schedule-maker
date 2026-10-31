@@ -31,6 +31,8 @@
   --color-border-strong: #c6c6c8; /* opaqueSeparator */
   --color-grid: #3c3c4317; /* 시간표 격자 (희미하게) */
   --color-overlay: #0000004d; /* 대화상자 뒤 배경 */
+  --color-toast: #1d1d1f; /* 알림 캡슐: 라이트에선 짙게 */
+  --color-toast-fg: #ffffff;
 
   /* ── Color / Text ─────────────────────────────────── */
   --color-fg: #1d1d1f;
@@ -100,6 +102,9 @@
   --color-border-strong: #424244;
   --color-grid: #ffffff12;
   --color-overlay: #00000080;
+  /* 알림: 흰색으로 뒤집지 않고 화면보다 한 단계 밝은 회색 (iOS 다크 HUD) */
+  --color-toast: #3a3b3e;
+  --color-toast-fg: #f2f2f5;
 
   /* 글자도 순백 대신 한 단계 낮춘 밝기 (본문 대비 12.7:1) */
   --color-fg: #e7e7ea;

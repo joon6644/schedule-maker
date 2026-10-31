@@ -11,7 +11,7 @@ export function ResultSummary({ generation, credits, variant, compact, onOpen }:
   generation: GenerationState
   credits: number | null
   variant: 'sidebar' | 'floating'
-  /** 모바일 탭 바가 접혔을 때: 접힌 캡슐 옆 같은 줄로 내려옴 */
+  /** 모바일에서 아래로 스크롤했을 때: 탭 바 뒤로 내려가며 숨음 (목록 볼 때는 방해하지 않게) */
   compact?: boolean
   onOpen?: () => void
 }) {
@@ -68,13 +68,14 @@ export function ResultSummary({ generation, credits, variant, compact, onOpen }:
       onClick={onOpen}
       aria-live="polite"
       className={cx(
-        'material fixed right-4 z-30 flex items-center justify-between gap-2 rounded-full pr-3 pl-5 text-left text-[14px] shadow-lg transition-[left,bottom,height] duration-300 ease-out active:scale-[0.99]',
-        compact ? 'bottom-4 left-[84px] h-14' : 'bottom-[92px] left-4 h-12',
+        'glass fixed right-4 left-4 z-30 flex h-12 items-center justify-between gap-2 rounded-full pr-3 pl-5 text-left text-[14px] transition-[bottom,opacity,scale] duration-500 ease-ios active:scale-[0.99]',
+        // 탭 바와 간격 12px. 접힐 때는 탭 바 뒤로 내려가며 사라짐
+        compact ? 'pointer-events-none bottom-3 scale-95 opacity-0' : 'bottom-[92px]',
       )}
     >
       {content}
       <span className="flex shrink-0 items-center text-[13px] font-semibold text-accent-fg">
-        {!compact && '시간표 보기'} <ChevronRight size={16} strokeWidth={2.5} />
+        시간표 보기 <ChevronRight size={16} strokeWidth={2.5} />
       </span>
     </button>
   )

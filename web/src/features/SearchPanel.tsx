@@ -106,9 +106,9 @@ export function SearchPanel({ courses, onPreview, pageScroll }: {
 
   return (
     <div className={pageScroll ? undefined : 'flex h-full min-h-0 flex-col'}>
-      <div className={cx('space-y-2 px-4 pt-1 pb-3', pageScroll && 'sticky top-0 z-10 bg-surface')}>
+      <div className={cx('px-4 pb-2', pageScroll ? 'sticky top-0 z-10 bg-surface pt-2' : 'pt-1')}>
         <div className="relative">
-          <Search size={16} className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-fg-subtle" />
+          <Search size={14} className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-fg-subtle" />
           <input
             value={query}
             onChange={(e) => {
@@ -120,17 +120,14 @@ export function SearchPanel({ courses, onPreview, pageScroll }: {
             }}
             placeholder="강의명, 교수명, 강의번호"
             aria-label="강의 검색"
-            className="h-9 w-full rounded-md bg-surface-sunken pr-9 pl-8 text-[15px] outline-none placeholder:text-fg-subtle focus:ring-2 focus:ring-accent-soft"
+            className="h-8 w-full rounded-md bg-surface-sunken pr-8 pl-7.5 text-[14px] outline-none placeholder:text-fg-subtle focus:ring-2 focus:ring-accent-soft"
           />
           {query && (
             <IconButton label="검색어 지우기" size="sm" className="absolute top-1/2 right-1 size-6 -translate-y-1/2" onClick={() => setQuery('')}>
-              <X size={13} />
+              <X size={12} />
             </IconButton>
           )}
         </div>
-        <p className="px-0.5 text-[12px] text-fg-muted tabular-nums">
-          {groups.length.toLocaleString()}개 과목
-        </p>
       </div>
 
       <div className={cx('px-2 pb-4', !pageScroll && 'min-h-0 flex-1 overflow-y-auto')}>
